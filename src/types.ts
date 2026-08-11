@@ -166,3 +166,13 @@ export function calcBranchTotals(data: BranchData) {
     netProfit: totalSales - totalExpenses,
   }
 }
+
+/** إجمالي الكاش النقدي للفرع خلال أيام أغسطس */
+export function sumCashMonth(data: BranchData): number {
+  const days = daysInMonth(YEAR, MONTH)
+  let total = 0
+  for (let d = 1; d <= days; d++) {
+    total += data.sales[dateKey(d)]?.cash || 0
+  }
+  return total
+}

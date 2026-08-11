@@ -12,6 +12,7 @@ import {
   emptyExpenses,
   emptySales,
   formatMoney,
+  sumCashMonth,
   sumExpenseDay,
   sumSalesDay,
   type AppData,
@@ -21,12 +22,12 @@ import {
 } from './types'
 import { loadData, saveData } from './storage'
 
-type Tab = 'sales' | 'expenses' | 'summary'
+type Tab = 'cash' | 'sales' | 'expenses' | 'summary'
 
 function App() {
   const [data, setData] = useState<AppData>(() => loadData())
   const [branch, setBranch] = useState<BranchId>('wasita')
-  const [tab, setTab] = useState<Tab>('sales')
+  const [tab, setTab] = useState<Tab>('cash')
   const [selectedDay, setSelectedDay] = useState(1)
   const [savedFlash, setSavedFlash] = useState(false)
 
@@ -36,6 +37,7 @@ function App() {
   const branchData = data[branch]
   const sales = branchData.sales[key] ?? emptySales()
   const expenses = branchData.expenses[key] ?? emptyExpenses()
+  const dayCash = sales.cash || 0
 
   useEffect(() => {
     saveData(data)
@@ -94,15 +96,29 @@ function App() {
   const currentTotals = branch === 'wasita' ? wasitaTotals : beirutTotals
   const daySalesTotal = sumSalesDay(sales)
   const dayExpenseTotal = sumExpenseDay(expenses)
+  const branchCashTotal = sumCashMonth(branchData)
+  const wasitaCashTotal = sumCashMonth(data.wasita)
+  const beirutCashTotal = sumCashMonth(data.beirut)
+  const grandCashTotal = wasitaCashTotal + beirutCashTotal
 
   const hasDayData = (day: number) => {
     const k = dateKey(day)
     const s = branchData.sales[k]
     const e = branchData.expenses[k]
+    if (tab === 'cash') {
+      return Boolean(s && s.cash !== 0)
+    }
     const salesFilled = s && Object.values(s).some((v) => v !== 0)
     const expFilled = e && Object.values(e).some((v) => v !== 0)
     return Boolean(salesFilled || expFilled)
   }
+
+  const dayHeadHint =
+    tab === 'cash'
+      ? `كاش اليوم: ${formatMoney(dayCash)}`
+      : tab === 'sales'
+        ? `إجمالي مبيعات اليوم: ${formatMoney(daySalesTotal)}`
+        : `إجمالي مصروفات اليوم: ${formatMoney(dayExpenseTotal)}`
 
   return (
     <div className="app">
@@ -123,6 +139,10 @@ function App() {
       </header>
 
       <section className="kpi-row" aria-label="ملخص سريع">
+        <article className="kpi accent">
+          <span>إجمالي الكاش (الفرعين)</span>
+          <strong className="pos">{formatMoney(grandCashTotal)}</strong>
+        </article>
         <article className="kpi">
           <span>إجمالي المبيعات</span>
           <strong className="pos">{formatMoney(grand.totalSales)}</strong>
@@ -131,7 +151,7 @@ function App() {
           <span>إجمالي المصروفات</span>
           <strong className="neg">{formatMoney(grand.totalExpenses)}</strong>
         </article>
-        <article className="kpi accent">
+        <article className="kpi">
           <span>صافي الربح (الفرعين)</span>
           <strong className={grand.netProfit >= 0 ? 'pos' : 'neg'}>
             {formatMoney(grand.netProfit)}
@@ -154,6 +174,9 @@ function App() {
 
       <div className="branch-mini">
         <span>
+          كاش الفرع: <b className="pos">{formatMoney(branchCashTotal)}</b>
+        </span>
+        <span>
           مبيعات الفرع: <b>{formatMoney(currentTotals.totalSales)}</b>
         </span>
         <span>
@@ -168,6 +191,13 @@ function App() {
       </div>
 
       <nav className="tabs" aria-label="الأقسام">
+        <button
+          type="button"
+          className={tab === 'cash' ? 'active' : ''}
+          onClick={() => setTab('cash')}
+        >
+          الكاش اليومي
+        </button>
         <button
           type="button"
           className={tab === 'sales' ? 'active' : ''}
@@ -197,11 +227,7 @@ function App() {
             <h2>
               يوم {selectedDay} أغسطس — {weekday}
             </h2>
-            <p>
-              {tab === 'sales'
-                ? `إجمالي مبيعات اليوم: ${formatMoney(daySalesTotal)}`
-                : `إجمالي مصروفات اليوم: ${formatMoney(dayExpenseTotal)}`}
-            </p>
+            <p>{dayHeadHint}</p>
           </div>
           <div className="day-grid" role="listbox" aria-label="أيام أغسطس">
             {Array.from({ length: totalDays }, (_, i) => i + 1).map((day) => (
@@ -224,6 +250,77 @@ function App() {
             ))}
           </div>
         </div>
+      )}
+
+      {tab === 'cash' && (
+        <section className="form-section cash-section">
+          <h3>تسجيل الكاش النقدي — {BRANCHES.find((b) => b.id === branch)?.name}</h3>
+          <p className="cash-lead">
+            أدخل كاش كل يوم من 1 إلى {totalDays} أغسطس {YEAR}. الحفظ تلقائي ويرتبط بحقل الكاش في
+            المبيعات.
+          </p>
+          <label className="field cash-field">
+            <span>الكاش النقدي ليوم {selectedDay} أغسطس</span>
+            <input
+              type="number"
+              inputMode="decimal"
+              step="0.01"
+              value={dayCash || ''}
+              placeholder="0"
+              autoFocus
+              onChange={(e) => updateSales('cash', parseNum(e.target.value))}
+            />
+          </label>
+          <div className="day-total-bar">
+            <span>كاش هذا اليوم</span>
+            <strong>{formatMoney(dayCash)}</strong>
+          </div>
+          <div className="day-total-bar cash-month-bar">
+            <span>إجمالي كاش الفرع لشهر أغسطس</span>
+            <strong>{formatMoney(branchCashTotal)}</strong>
+          </div>
+
+          <div className="month-table-wrap cash-table-wrap">
+            <h4>سجل الكاش اليومي — أغسطس {YEAR}</h4>
+            <table className="month-table">
+              <thead>
+                <tr>
+                  <th>اليوم</th>
+                  <th>اليوم الأسبوعي</th>
+                  <th>الكاش النقدي</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Array.from({ length: totalDays }, (_, i) => i + 1).map((day) => {
+                  const k = dateKey(day)
+                  const cash = branchData.sales[k]?.cash || 0
+                  const wd = ARABIC_DAYS[new Date(YEAR, MONTH, day).getDay()]
+                  return (
+                    <tr
+                      key={day}
+                      className={selectedDay === day ? 'row-selected' : ''}
+                      onClick={() => setSelectedDay(day)}
+                    >
+                      <td>{day}</td>
+                      <td>{wd}</td>
+                      <td className={cash > 0 ? 'pos' : ''}>{formatMoney(cash)}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colSpan={2}>مجموع كاش الفرع</td>
+                  <td>{formatMoney(branchCashTotal)}</td>
+                </tr>
+                <tr>
+                  <td colSpan={2}>مجموع كاش الفرعين</td>
+                  <td>{formatMoney(grandCashTotal)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </section>
       )}
 
       {tab === 'sales' && (
