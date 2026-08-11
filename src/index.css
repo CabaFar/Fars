@@ -430,8 +430,10 @@ input {
   font-size: 0.95rem;
 }
 
-.cash-field {
-  max-width: 28rem;
+.cash-branches {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
 }
 
 .cash-field input {
@@ -441,8 +443,23 @@ input {
   padding: 1rem 1.1rem;
 }
 
+.cash-day-totals,
+.cash-month-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.65rem;
+  margin-top: 1.15rem;
+}
+
+.cash-day-totals .day-total-bar,
+.cash-month-summary .day-total-bar {
+  margin-top: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+}
+
 .cash-month-bar {
-  margin-top: 0.65rem;
   background: rgba(125, 202, 138, 0.08);
   border-color: rgba(125, 202, 138, 0.28);
 }
@@ -569,6 +586,11 @@ input {
   .kpi-row {
     grid-template-columns: repeat(2, 1fr);
   }
+
+  .cash-day-totals,
+  .cash-month-summary {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 860px) {
@@ -577,7 +599,8 @@ input {
     grid-template-columns: 1fr;
   }
 
-  .fields {
+  .fields,
+  .cash-branches {
     grid-template-columns: 1fr;
   }
 
