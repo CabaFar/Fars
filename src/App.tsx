@@ -13,6 +13,7 @@ import {
   emptySales,
   formatMoney,
   sumCashMonth,
+  sumCashExpensesMonth,
   sumExpenseDay,
   sumSalesDay,
   type AppData,
@@ -103,16 +104,31 @@ function App() {
   const wasitaCashTotal = sumCashMonth(data.wasita)
   const beirutCashTotal = sumCashMonth(data.beirut)
   const grandCashTotal = wasitaCashTotal + beirutCashTotal
+  const wasitaCashExpenseTotal = sumCashExpensesMonth(data.wasita)
+  const beirutCashExpenseTotal = sumCashExpensesMonth(data.beirut)
+  const grandCashExpenseTotal = wasitaCashExpenseTotal + beirutCashExpenseTotal
   const wasitaDayCash = data.wasita.sales[key]?.cash || 0
   const beirutDayCash = data.beirut.sales[key]?.cash || 0
+  const wasitaDayCashExpense = data.wasita.sales[key]?.todayPurchases || 0
+  const beirutDayCashExpense = data.beirut.sales[key]?.todayPurchases || 0
   const bothBranchesDayCash = wasitaDayCash + beirutDayCash
+  const bothBranchesDayCashExpense = wasitaDayCashExpense + beirutDayCashExpense
+  const wasitaDayNetCash = wasitaDayCash - wasitaDayCashExpense
+  const beirutDayNetCash = beirutDayCash - beirutDayCashExpense
+  const bothBranchesDayNetCash = wasitaDayNetCash + beirutDayNetCash
+  const wasitaNetCashTotal = wasitaCashTotal - wasitaCashExpenseTotal
+  const beirutNetCashTotal = beirutCashTotal - beirutCashExpenseTotal
+  const grandNetCashTotal = grandCashTotal - grandCashExpenseTotal
 
   const hasDayData = (day: number) => {
     const k = dateKey(day)
     if (tab === 'cash') {
-      const wasitaCash = data.wasita.sales[k]?.cash || 0
-      const beirutCash = data.beirut.sales[k]?.cash || 0
-      return wasitaCash !== 0 || beirutCash !== 0
+      const wasita = data.wasita.sales[k]
+      const beirut = data.beirut.sales[k]
+      return Boolean(
+        (wasita && (wasita.cash !== 0 || wasita.todayPurchases !== 0)) ||
+          (beirut && (beirut.cash !== 0 || beirut.todayPurchases !== 0)),
+      )
     }
     const s = branchData.sales[k]
     const e = branchData.expenses[k]
@@ -123,7 +139,7 @@ function App() {
 
   const dayHeadHint =
     tab === 'cash'
-      ? `كاش الفرعين اليوم: ${formatMoney(bothBranchesDayCash)}`
+      ? `صافي كاش الفرعين اليوم: ${formatMoney(bothBranchesDayNetCash)}`
       : tab === 'sales'
         ? `إجمالي مبيعات اليوم: ${formatMoney(daySalesTotal)}`
         : `إجمالي مصروفات اليوم: ${formatMoney(dayExpenseTotal)}`
@@ -155,14 +171,14 @@ function App() {
           <span>كاش بيروت</span>
           <strong className="pos">{formatMoney(beirutCashTotal)}</strong>
         </article>
-        <article className="kpi accent">
-          <span>إجمالي الكاش (الفرعين)</span>
-          <strong className="pos">{formatMoney(grandCashTotal)}</strong>
-        </article>
         <article className="kpi">
-          <span>صافي الربح (الفرعين)</span>
-          <strong className={grand.netProfit >= 0 ? 'pos' : 'neg'}>
-            {formatMoney(grand.netProfit)}
+          <span>مصروفات الكاش (الفرعين)</span>
+          <strong className="neg">{formatMoney(grandCashExpenseTotal)}</strong>
+        </article>
+        <article className="kpi accent">
+          <span>صافي الكاش (الفرعين)</span>
+          <strong className={grandNetCashTotal >= 0 ? 'pos' : 'neg'}>
+            {formatMoney(grandNetCashTotal)}
           </strong>
         </article>
       </section>
@@ -268,84 +284,160 @@ function App() {
         <section className="form-section cash-section">
           <h3>تسجيل الكاش اليومي — فرع الوسيطاء وفرع بيروت</h3>
           <p className="cash-lead">
-            أدخل كاش كل فرع يومياً من 1 إلى {totalDays} أغسطس {YEAR}. الحفظ تلقائي ويرتبط بحقل
-            الكاش في المبيعات لكل فرع.
+            أدخل الكاش ومصروفات الكاش لكل فرع يومياً من 1 إلى {totalDays} أغسطس {YEAR}. الحفظ تلقائي.
           </p>
 
-          <div className="cash-branches">
-            <label className="field cash-field">
-              <span>فرع الوسيطاء — يوم {selectedDay}</span>
-              <input
-                type="number"
-                inputMode="decimal"
-                step="0.01"
-                value={wasitaDayCash || ''}
-                placeholder="0"
-                autoFocus
-                onChange={(e) => updateSalesFor('wasita', 'cash', parseNum(e.target.value))}
-              />
-            </label>
-            <label className="field cash-field">
-              <span>فرع بيروت — يوم {selectedDay}</span>
-              <input
-                type="number"
-                inputMode="decimal"
-                step="0.01"
-                value={beirutDayCash || ''}
-                placeholder="0"
-                onChange={(e) => updateSalesFor('beirut', 'cash', parseNum(e.target.value))}
-              />
-            </label>
+          <div className="cash-branch-cards">
+            <article className="cash-branch-card">
+              <h4>فرع الوسيطاء</h4>
+              <div className="cash-branch-fields">
+                <label className="field cash-field">
+                  <span>الكاش النقدي — يوم {selectedDay}</span>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    value={wasitaDayCash || ''}
+                    placeholder="0"
+                    autoFocus
+                    onChange={(e) => updateSalesFor('wasita', 'cash', parseNum(e.target.value))}
+                  />
+                </label>
+                <label className="field cash-field cash-expense-field">
+                  <span>مصروفات من الكاش — يوم {selectedDay}</span>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    value={wasitaDayCashExpense || ''}
+                    placeholder="0"
+                    onChange={(e) =>
+                      updateSalesFor('wasita', 'todayPurchases', parseNum(e.target.value))
+                    }
+                  />
+                </label>
+              </div>
+              <div className="day-total-bar cash-net-bar">
+                <span>صافي كاش الوسيطاء اليوم</span>
+                <strong className={wasitaDayNetCash >= 0 ? 'pos' : 'neg'}>
+                  {formatMoney(wasitaDayNetCash)}
+                </strong>
+              </div>
+            </article>
+
+            <article className="cash-branch-card">
+              <h4>فرع بيروت</h4>
+              <div className="cash-branch-fields">
+                <label className="field cash-field">
+                  <span>الكاش النقدي — يوم {selectedDay}</span>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    value={beirutDayCash || ''}
+                    placeholder="0"
+                    onChange={(e) => updateSalesFor('beirut', 'cash', parseNum(e.target.value))}
+                  />
+                </label>
+                <label className="field cash-field cash-expense-field">
+                  <span>مصروفات من الكاش — يوم {selectedDay}</span>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    value={beirutDayCashExpense || ''}
+                    placeholder="0"
+                    onChange={(e) =>
+                      updateSalesFor('beirut', 'todayPurchases', parseNum(e.target.value))
+                    }
+                  />
+                </label>
+              </div>
+              <div className="day-total-bar cash-net-bar">
+                <span>صافي كاش بيروت اليوم</span>
+                <strong className={beirutDayNetCash >= 0 ? 'pos' : 'neg'}>
+                  {formatMoney(beirutDayNetCash)}
+                </strong>
+              </div>
+            </article>
           </div>
 
           <div className="cash-day-totals">
             <div className="day-total-bar">
-              <span>كاش الوسيطاء اليوم</span>
-              <strong>{formatMoney(wasitaDayCash)}</strong>
+              <span>كاش الفرعين اليوم</span>
+              <strong>{formatMoney(bothBranchesDayCash)}</strong>
             </div>
             <div className="day-total-bar">
-              <span>كاش بيروت اليوم</span>
-              <strong>{formatMoney(beirutDayCash)}</strong>
+              <span>مصروفات الكاش اليوم</span>
+              <strong className="neg">{formatMoney(bothBranchesDayCashExpense)}</strong>
             </div>
             <div className="day-total-bar cash-month-bar">
-              <span>مجموع الفرعين اليوم</span>
-              <strong>{formatMoney(bothBranchesDayCash)}</strong>
+              <span>صافي الفرعين اليوم</span>
+              <strong className={bothBranchesDayNetCash >= 0 ? 'pos' : 'neg'}>
+                {formatMoney(bothBranchesDayNetCash)}
+              </strong>
             </div>
           </div>
 
           <div className="cash-month-summary">
             <div className="day-total-bar">
-              <span>إجمالي كاش الوسيطاء (أغسطس)</span>
+              <span>إجمالي كاش الوسيطاء</span>
               <strong>{formatMoney(wasitaCashTotal)}</strong>
             </div>
             <div className="day-total-bar">
-              <span>إجمالي كاش بيروت (أغسطس)</span>
+              <span>مصروف كاش الوسيطاء</span>
+              <strong className="neg">{formatMoney(wasitaCashExpenseTotal)}</strong>
+            </div>
+            <div className="day-total-bar">
+              <span>صافي كاش الوسيطاء</span>
+              <strong className={wasitaNetCashTotal >= 0 ? 'pos' : 'neg'}>
+                {formatMoney(wasitaNetCashTotal)}
+              </strong>
+            </div>
+            <div className="day-total-bar">
+              <span>إجمالي كاش بيروت</span>
               <strong>{formatMoney(beirutCashTotal)}</strong>
             </div>
-            <div className="day-total-bar cash-month-bar">
-              <span>إجمالي كاش الفرعين (أغسطس)</span>
-              <strong>{formatMoney(grandCashTotal)}</strong>
+            <div className="day-total-bar">
+              <span>مصروف كاش بيروت</span>
+              <strong className="neg">{formatMoney(beirutCashExpenseTotal)}</strong>
+            </div>
+            <div className="day-total-bar">
+              <span>صافي كاش بيروت</span>
+              <strong className={beirutNetCashTotal >= 0 ? 'pos' : 'neg'}>
+                {formatMoney(beirutNetCashTotal)}
+              </strong>
+            </div>
+            <div className="day-total-bar cash-month-bar cash-month-grand">
+              <span>صافي كاش الفرعين (أغسطس)</span>
+              <strong className={grandNetCashTotal >= 0 ? 'pos' : 'neg'}>
+                {formatMoney(grandNetCashTotal)}
+              </strong>
             </div>
           </div>
 
           <div className="month-table-wrap cash-table-wrap">
-            <h4>سجل الكاش اليومي للفرعين — أغسطس {YEAR}</h4>
+            <h4>سجل الكاش والمصروفات اليومية — أغسطس {YEAR}</h4>
             <table className="month-table">
               <thead>
                 <tr>
                   <th>اليوم</th>
                   <th>اليوم الأسبوعي</th>
-                  <th>فرع الوسيطاء</th>
-                  <th>فرع بيروت</th>
-                  <th>المجموع</th>
+                  <th>كاش الوسيطاء</th>
+                  <th>مصروف الوسيطاء</th>
+                  <th>كاش بيروت</th>
+                  <th>مصروف بيروت</th>
+                  <th>صافي الفرعين</th>
                 </tr>
               </thead>
               <tbody>
                 {Array.from({ length: totalDays }, (_, i) => i + 1).map((day) => {
                   const k = dateKey(day)
                   const wasitaCash = data.wasita.sales[k]?.cash || 0
+                  const wasitaExpense = data.wasita.sales[k]?.todayPurchases || 0
                   const beirutCash = data.beirut.sales[k]?.cash || 0
-                  const dayTotal = wasitaCash + beirutCash
+                  const beirutExpense = data.beirut.sales[k]?.todayPurchases || 0
+                  const dayNet = wasitaCash + beirutCash - wasitaExpense - beirutExpense
                   const wd = ARABIC_DAYS[new Date(YEAR, MONTH, day).getDay()]
                   return (
                     <tr
@@ -356,8 +448,14 @@ function App() {
                       <td>{day}</td>
                       <td>{wd}</td>
                       <td className={wasitaCash > 0 ? 'pos' : ''}>{formatMoney(wasitaCash)}</td>
+                      <td className={wasitaExpense > 0 ? 'neg' : ''}>
+                        {formatMoney(wasitaExpense)}
+                      </td>
                       <td className={beirutCash > 0 ? 'pos' : ''}>{formatMoney(beirutCash)}</td>
-                      <td className={dayTotal > 0 ? 'pos' : ''}>{formatMoney(dayTotal)}</td>
+                      <td className={beirutExpense > 0 ? 'neg' : ''}>
+                        {formatMoney(beirutExpense)}
+                      </td>
+                      <td className={dayNet >= 0 ? 'pos' : 'neg'}>{formatMoney(dayNet)}</td>
                     </tr>
                   )
                 })}
@@ -366,8 +464,12 @@ function App() {
                 <tr>
                   <td colSpan={2}>المجموع الشهري</td>
                   <td>{formatMoney(wasitaCashTotal)}</td>
+                  <td>{formatMoney(wasitaCashExpenseTotal)}</td>
                   <td>{formatMoney(beirutCashTotal)}</td>
-                  <td>{formatMoney(grandCashTotal)}</td>
+                  <td>{formatMoney(beirutCashExpenseTotal)}</td>
+                  <td className={grandNetCashTotal >= 0 ? 'pos' : 'neg'}>
+                    {formatMoney(grandNetCashTotal)}
+                  </td>
                 </tr>
               </tfoot>
             </table>
@@ -399,8 +501,8 @@ function App() {
           </div>
           {sales.todayPurchases > 0 && (
             <p className="hint">
-              مشتريات اليوم من الصندوق: {formatMoney(sales.todayPurchases)} — للمطابقة مع
-              صفحة المشتريات (لا تُحتسب مرتين في صافي الربح)
+              مصروفات من الكاش اليوم: {formatMoney(sales.todayPurchases)} — تُسجَّل أيضاً في صفحة
+              الكاش اليومي ولا تُحتسب ضمن إجمالي المبيعات
             </p>
           )}
         </section>
