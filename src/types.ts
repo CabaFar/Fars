@@ -13,7 +13,7 @@ export const SALES_FIELDS = [
   { key: 'exchange1', label: 'صرافه 1' },
   { key: 'visa1', label: 'Visa 1' },
   { key: 'hala', label: 'هلا' },
-  { key: 'todayPurchases', label: 'مصروفات من الكاش' },
+  { key: 'todayPurchases', label: 'مشتريات اليوم' },
   { key: 'cash', label: 'الكاش النقدي' },
   { key: 'deliveryApps', label: 'تطبيقات التوصيل' },
   { key: 'surplusDeficit', label: 'فائض أو عجز' },
@@ -165,24 +165,4 @@ export function calcBranchTotals(data: BranchData) {
     totalExpenses,
     netProfit: totalSales - totalExpenses,
   }
-}
-
-/** إجمالي الكاش النقدي للفرع خلال أيام أغسطس */
-export function sumCashMonth(data: BranchData): number {
-  const days = daysInMonth(YEAR, MONTH)
-  let total = 0
-  for (let d = 1; d <= days; d++) {
-    total += data.sales[dateKey(d)]?.cash || 0
-  }
-  return total
-}
-
-/** إجمالي مصروفات الكاش للفرع خلال أيام أغسطس */
-export function sumCashExpensesMonth(data: BranchData): number {
-  const days = daysInMonth(YEAR, MONTH)
-  let total = 0
-  for (let d = 1; d <= days; d++) {
-    total += data.sales[dateKey(d)]?.todayPurchases || 0
-  }
-  return total
 }
