@@ -58,6 +58,11 @@ export const UNIT_LABEL: Record<Unit, string> = {
   box: 'علبة',
 }
 
+export function priceLabel(unit: Unit): string {
+  if (unit === 'sar') return 'السعر (ريال)'
+  return `سعر ال${UNIT_LABEL[unit]}`
+}
+
 export const CATALOG: CatalogItem[] = [
   {
     id: 'chicken',

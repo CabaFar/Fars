@@ -20,6 +20,7 @@ export const ARABIC_DAYS = [
 export type ItemDay = {
   openingQty: number
   purchaseQty: number
+  unitPrice: number
   purchaseCost: number
   closingQty: number
   counted: boolean
@@ -28,11 +29,13 @@ export type ItemDay = {
 export type DayRecord = Record<string, ItemDay>
 export type BranchData = Record<string, DayRecord>
 export type InventoryData = Record<BranchId, BranchData>
+export type PriceList = Record<BranchId, Record<string, number>>
 
 export function emptyItemDay(openingQty = 0): ItemDay {
   return {
     openingQty,
     purchaseQty: 0,
+    unitPrice: 0,
     purchaseCost: 0,
     closingQty: 0,
     counted: false,
@@ -41,6 +44,19 @@ export function emptyItemDay(openingQty = 0): ItemDay {
 
 export function emptyInventoryData(): InventoryData {
   return { wasita: {}, beirut: {} }
+}
+
+export function emptyPriceList(): PriceList {
+  return { wasita: {}, beirut: {} }
+}
+
+export function roundMoney(value: number): number {
+  return Math.round(value * 100) / 100
+}
+
+export function lineTotal(qty: number, unitPrice: number, unit: Unit): number {
+  if (unit === 'sar') return roundMoney(qty)
+  return roundMoney(qty * unitPrice)
 }
 
 export function pad2(n: number): string {
@@ -104,6 +120,7 @@ export function consumedQty(day: ItemDay): number {
 }
 
 export function unitCost(day: ItemDay): number {
+  if (day.unitPrice > 0) return day.unitPrice
   if (day.purchaseQty > 0 && day.purchaseCost > 0) {
     return day.purchaseCost / day.purchaseQty
   }
@@ -162,7 +179,18 @@ export function resolveItemDay(
   itemId: string,
 ): ItemDay {
   const existing = data[branch][key]?.[itemId]
-  if (existing) return existing
+  if (existing) {
+    const unitPrice =
+      existing.unitPrice ||
+      (existing.purchaseQty > 0 && existing.purchaseCost > 0
+        ? existing.purchaseCost / existing.purchaseQty
+        : 0)
+    return {
+      ...emptyItemDay(),
+      ...existing,
+      unitPrice,
+    }
+  }
   return emptyItemDay(lastCountedClosing(data, branch, key, itemId))
 }
 
