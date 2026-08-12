@@ -316,6 +316,35 @@ input {
   margin-bottom: 0.85rem;
 }
 
+.inv-howto {
+  background: var(--red-soft);
+  border: 1px solid var(--red-line);
+  border-radius: 12px;
+  padding: 0.9rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.inv-howto h4 {
+  margin: 0;
+  font-family: var(--font-display);
+  color: var(--red-dark);
+}
+
+.inv-howto ol {
+  margin: 0.55rem 0 0.5rem;
+  padding: 0 1.15rem 0 0;
+}
+
+.inv-howto li {
+  margin: 0.25rem 0;
+}
+
+.inv-howto p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
 .inv-table-wrap {
   overflow-x: auto;
 }

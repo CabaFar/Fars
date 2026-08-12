@@ -19,7 +19,6 @@ export type CategoryId =
   | 'frozen'
   | 'sauces'
   | 'bakery'
-  | 'ops'
   | 'plastic'
 
 export type CountCycle = 'daily' | 'weekly'
@@ -42,7 +41,6 @@ export const CATEGORIES: { id: CategoryId; name: string; hint: string }[] = [
   { id: 'frozen', name: 'المجمدات', hint: 'يُسجَّل بالكرتون' },
   { id: 'sauces', name: 'الصوصات', hint: 'علبة · كرتون · جالون · سطل' },
   { id: 'bakery', name: 'المخبوزات والطحين', hint: 'حبة · كيس · ربطة' },
-  { id: 'ops', name: 'تشغيل مقترح', hint: 'أصناف أُضيفت حسب تشغيل الشاورما' },
   { id: 'plastic', name: 'بلاستيك وتغليف', hint: 'مستهلكات يومية وأسبوعية' },
 ]
 
@@ -221,28 +219,6 @@ export const CATALOG: CatalogItem[] = [
     category: 'bakery',
     unit: 'bundle',
     minStock: 2,
-    step: 1,
-    countCycle: 'daily',
-  },
-
-  {
-    id: 'yogurt',
-    name: 'لبن / زبادي (ثومية)',
-    category: 'ops',
-    unit: 'carton',
-    minStock: 1,
-    step: 1,
-    countCycle: 'daily',
-  },
-  { id: 'charcoal', name: 'فحم', category: 'ops', unit: 'bag', minStock: 2, step: 1, countCycle: 'weekly' },
-  { id: 'pepsi', name: 'بيبسي', category: 'ops', unit: 'carton', minStock: 2, step: 1, countCycle: 'weekly' },
-  { id: 'water', name: 'مياه', category: 'ops', unit: 'carton', minStock: 2, step: 1, countCycle: 'weekly' },
-  {
-    id: 'saj-bread',
-    name: 'خبز صاج / شاورما',
-    category: 'ops',
-    unit: 'bundle',
-    minStock: 3,
     step: 1,
     countCycle: 'daily',
   },
