@@ -9,6 +9,7 @@ export type CategoryId =
   | 'sauces'
   | 'bakery'
   | 'plastic'
+  | 'cleaners'
 
 export type CountCycle = 'daily' | 'weekly'
 
@@ -39,6 +40,7 @@ export const CATEGORIES: { id: CategoryId; name: string }[] = [
   { id: 'sauces', name: 'الصوصات' },
   { id: 'bakery', name: 'المخبوزات والطحين' },
   { id: 'plastic', name: 'بلاستيك وتغليف' },
+  { id: 'cleaners', name: 'المنظفات' },
 ]
 
 export const UNITS: { id: Unit; name: string }[] = [
@@ -77,6 +79,7 @@ function item(
 export const CATALOG: CatalogItem[] = [
   item('chicken', 'دجاج', 'chicken', 'kg', 8, 'daily'),
   item('spices', 'بهارات', 'spices', 'kg', 1, 'daily'),
+  item('potato-spices-mahran', 'بهارات بطاطس مهران', 'spices', 'pack', 1, 'daily'),
 
   item('lettuce', 'خس', 'veg', 'kg', 1, 'daily'),
   item('hot-pepper', 'فلفل حار', 'veg', 'kg', 1, 'daily'),
@@ -100,6 +103,7 @@ export const CATALOG: CatalogItem[] = [
   item('burghul', 'برغل', 'dry', 'pack', 1, 'weekly'),
 
   item('frozen-potato', 'بطاطس مجمد', 'frozen', 'carton', 2, 'weekly'),
+  item('potato-cubes', 'مكعبات بطاطس', 'frozen', 'carton', 1, 'weekly'),
   item('chicken-burger', 'برغر دجاج', 'frozen', 'carton', 1, 'weekly'),
   item('akkawi', 'جبن عكاوي', 'frozen', 'carton', 1, 'weekly'),
   item('mozzarella', 'موزاريلا', 'frozen', 'carton', 1, 'weekly'),
@@ -123,7 +127,8 @@ export const CATALOG: CatalogItem[] = [
   item('potato-cups', 'علب بطاطس', 'plastic', 'carton', 1, 'weekly'),
   item('sauce-cups', 'علب صوصات', 'plastic', 'carton', 1, 'weekly'),
   item('dough-bags', 'أكياس عجين', 'plastic', 'carton', 1, 'weekly'),
-  item('gloves', 'قفازات', 'plastic', 'carton', 1, 'weekly'),
+  item('gloves-l', 'قفازات مقاس L', 'plastic', 'carton', 1, 'weekly'),
+  item('gloves-xl', 'قفازات مقاس XL', 'plastic', 'carton', 1, 'weekly'),
   item('masks', 'كمامات', 'plastic', 'carton', 1, 'weekly'),
   item('hairnet', 'غطاء شعر', 'plastic', 'carton', 1, 'weekly'),
   item('burger-foam', 'فلين برغر', 'plastic', 'carton', 1, 'weekly'),
@@ -137,10 +142,16 @@ export const CATALOG: CatalogItem[] = [
   item('receipt-paper', 'ورق إيصال', 'plastic', 'carton', 1, 'weekly'),
   item('staples', 'دبابيس', 'plastic', 'pack', 1, 'weekly'),
   item('forks', 'شوك', 'plastic', 'carton', 1, 'weekly'),
-  item('municipal-bags', 'أكياس بلدية', 'plastic', 'carton', 1, 'weekly'),
+  item('municipal-bags-small', 'أكياس بلدية صغير', 'plastic', 'carton', 1, 'weekly'),
+  item('municipal-bags-large', 'أكياس بلدية كبير', 'plastic', 'carton', 1, 'weekly'),
   item('tissues', 'مناديل', 'plastic', 'carton', 2, 'weekly'),
-  item('cleaners', 'منظفات', 'plastic', 'carton', 1, 'weekly'),
+  item('scrubber', 'سلك', 'plastic', 'pack', 1, 'weekly'),
+  item('sponge', 'اسفنج', 'plastic', 'pack', 1, 'weekly'),
   item('apron', 'مريول', 'plastic', 'piece', 4, 'weekly'),
+
+  item('dish-soap', 'غسيل صحون', 'cleaners', 'pack', 1, 'weekly'),
+  item('clorox', 'كلوركس', 'cleaners', 'pack', 1, 'weekly'),
+  item('dettol', 'ديتول', 'cleaners', 'pack', 1, 'weekly'),
 ]
 
 const DAILY_CATEGORIES: CategoryId[] = ['chicken', 'spices', 'veg', 'bakery']

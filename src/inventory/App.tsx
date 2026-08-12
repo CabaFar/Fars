@@ -109,9 +109,9 @@ function InventoryApp() {
     })
   }
 
-  const listedPrice = (itemId: string, rec: ItemDay) => {
+  const listedPrice = (itemId: string, rec: ItemDay, branchId: BranchId = branch) => {
     if (rec.unitPrice > 0) return rec.unitPrice
-    return prices[branch][itemId] || lastUnitCost(data, branch, key, itemId) || 0
+    return prices[branchId][itemId] || lastUnitCost(data, branchId, key, itemId) || 0
   }
 
   const setListedPrice = (itemId: string, value: number) => {
@@ -191,6 +191,28 @@ function InventoryApp() {
   )
   const negativeCount = allRows.filter((row) => row.day.counted && consumedQty(row.day) < 0)
 
+  const dayPurchaseFor = (branchId: BranchId) =>
+    allItems.reduce((sum, item) => {
+      const rec = resolveItemDay(data, branchId, key, item.id)
+      return sum + (rec.purchaseCost || 0)
+    }, 0)
+
+  const monthPurchaseFor = (branchId: BranchId) => {
+    let total = 0
+    for (let d = 1; d <= totalDays; d++) {
+      const k = dateKeyFromParts(year, month, d)
+      for (const item of allItems) {
+        total += data[branchId][k]?.[item.id]?.purchaseCost || 0
+      }
+    }
+    return total
+  }
+
+  const wasitaDay = dayPurchaseFor('wasita')
+  const beirutDay = dayPurchaseFor('beirut')
+  const branchesDayTotal = wasitaDay + beirutDay
+  const branchesMonthTotal = monthPurchaseFor('wasita') + monthPurchaseFor('beirut')
+
   const shiftMonth = (delta: number) => {
     const next = new Date(year, month + delta, 1)
     setYear(next.getFullYear())
@@ -267,6 +289,28 @@ function InventoryApp() {
           {savedFlash ? 'تم الحفظ' : 'حفظ تلقائي'}
         </div>
       </header>
+
+      <section className="inv-grand no-print" aria-label="إجمالي الفروع">
+        <h2>إجمالي الفروع</h2>
+        <div className="inv-grand-grid">
+          <article>
+            <span>مشتريات اليوم (الفرعين)</span>
+            <strong>{formatMoney(branchesDayTotal)} ر.س</strong>
+          </article>
+          <article>
+            <span>الوسيطاء اليوم</span>
+            <strong>{formatMoney(wasitaDay)} ر.س</strong>
+          </article>
+          <article>
+            <span>بيروت اليوم</span>
+            <strong>{formatMoney(beirutDay)} ر.س</strong>
+          </article>
+          <article>
+            <span>مشتريات الشهر (الفرعين)</span>
+            <strong>{formatMoney(branchesMonthTotal)} ر.س</strong>
+          </article>
+        </div>
+      </section>
 
       <section className="inv-kpis no-print" aria-label="ملخص اليوم">
         <article>

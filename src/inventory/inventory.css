@@ -136,6 +136,47 @@ input {
   background: var(--ok-soft);
 }
 
+.inv-grand {
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--red);
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, #fff 0%, var(--red-soft) 100%);
+  box-shadow: var(--shadow);
+}
+
+.inv-grand h2 {
+  margin: 0 0 0.75rem;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  color: var(--red-dark);
+}
+
+.inv-grand-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+}
+
+.inv-grand-grid article {
+  background: #fff;
+  border: 1px solid var(--red-line);
+  border-radius: 12px;
+  padding: 0.85rem 0.95rem;
+}
+
+.inv-grand-grid span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.inv-grand-grid strong {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  color: var(--red-dark);
+}
+
 .inv-kpis {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -563,6 +604,7 @@ input {
 
 @media (max-width: 860px) {
   .inv-kpis,
+  .inv-grand-grid,
   .inv-report-grid {
     grid-template-columns: 1fr;
   }
