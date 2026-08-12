@@ -1,8 +1,11 @@
-import type { InventoryData, PriceList } from './types'
+import type { ExtraItem } from './catalog'
+import type { InventoryData, PriceList, UnitOverrides } from './types'
 import { emptyInventoryData, emptyPriceList } from './types'
 
 const STORAGE_KEY = 'shawarma-inventory-v1'
 const PRICE_KEY = 'shawarma-inventory-prices-v1'
+const EXTRA_KEY = 'shawarma-inventory-extras-v1'
+const UNITS_KEY = 'shawarma-inventory-units-v1'
 
 export function loadInventory(): InventoryData {
   try {
@@ -40,10 +43,46 @@ export function savePrices(prices: PriceList): void {
   localStorage.setItem(PRICE_KEY, JSON.stringify(prices))
 }
 
-export function exportInventory(data: InventoryData, prices: PriceList): void {
-  const blob = new Blob([JSON.stringify({ version: 2, data, prices }, null, 2)], {
-    type: 'application/json',
-  })
+export function loadExtras(): ExtraItem[] {
+  try {
+    const raw = localStorage.getItem(EXTRA_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as ExtraItem[]
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+export function saveExtras(items: ExtraItem[]): void {
+  localStorage.setItem(EXTRA_KEY, JSON.stringify(items))
+}
+
+export function loadUnitOverrides(): UnitOverrides {
+  try {
+    const raw = localStorage.getItem(UNITS_KEY)
+    if (!raw) return {}
+    const parsed = JSON.parse(raw) as UnitOverrides
+    return parsed && typeof parsed === 'object' ? parsed : {}
+  } catch {
+    return {}
+  }
+}
+
+export function saveUnitOverrides(units: UnitOverrides): void {
+  localStorage.setItem(UNITS_KEY, JSON.stringify(units))
+}
+
+export type BackupPayload = {
+  version: number
+  data: InventoryData
+  prices: PriceList
+  extras: ExtraItem[]
+  units: UnitOverrides
+}
+
+export function exportInventory(payload: BackupPayload): void {
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
@@ -52,20 +91,18 @@ export function exportInventory(data: InventoryData, prices: PriceList): void {
   URL.revokeObjectURL(url)
 }
 
-export function importInventory(file: File): Promise<{ data: InventoryData; prices: PriceList }> {
+export function importInventory(file: File): Promise<BackupPayload> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = () => {
       try {
-        const parsed = JSON.parse(String(reader.result)) as {
-          version?: number
-          data?: InventoryData
-          prices?: PriceList
+        const parsed = JSON.parse(String(reader.result)) as Partial<BackupPayload> & {
           wasita?: InventoryData['wasita']
           beirut?: InventoryData['beirut']
         }
         if (parsed.data) {
           resolve({
+            version: 3,
             data: {
               wasita: parsed.data.wasita ?? {},
               beirut: parsed.data.beirut ?? {},
@@ -74,15 +111,20 @@ export function importInventory(file: File): Promise<{ data: InventoryData; pric
               wasita: parsed.prices?.wasita ?? {},
               beirut: parsed.prices?.beirut ?? {},
             },
+            extras: parsed.extras ?? [],
+            units: parsed.units ?? {},
           })
           return
         }
         resolve({
+          version: 3,
           data: {
             wasita: parsed.wasita ?? {},
             beirut: parsed.beirut ?? {},
           },
           prices: emptyPriceList(),
+          extras: [],
+          units: {},
         })
       } catch (err) {
         reject(err)

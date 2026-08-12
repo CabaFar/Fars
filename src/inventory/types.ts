@@ -22,6 +22,7 @@ export type ItemDay = {
   purchaseQty: number
   unitPrice: number
   purchaseCost: number
+  supplier: string
   closingQty: number
   counted: boolean
 }
@@ -30,6 +31,7 @@ export type DayRecord = Record<string, ItemDay>
 export type BranchData = Record<string, DayRecord>
 export type InventoryData = Record<BranchId, BranchData>
 export type PriceList = Record<BranchId, Record<string, number>>
+export type UnitOverrides = Record<string, Unit>
 
 export function emptyItemDay(openingQty = 0): ItemDay {
   return {
@@ -37,6 +39,7 @@ export function emptyItemDay(openingQty = 0): ItemDay {
     purchaseQty: 0,
     unitPrice: 0,
     purchaseCost: 0,
+    supplier: '',
     closingQty: 0,
     counted: false,
   }
@@ -54,8 +57,7 @@ export function roundMoney(value: number): number {
   return Math.round(value * 100) / 100
 }
 
-export function lineTotal(qty: number, unitPrice: number, unit: Unit): number {
-  if (unit === 'sar') return roundMoney(qty)
+export function lineTotal(qty: number, unitPrice: number): number {
   return roundMoney(qty * unitPrice)
 }
 
@@ -95,19 +97,17 @@ export function formatMoney(value: number): string {
 
 export function formatQty(value: number, unit: Unit): string {
   const n = Number.isFinite(value) ? value : 0
-  if (unit === 'kg') {
-    return `${new Intl.NumberFormat('ar-SA', {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 3,
-    }).format(n)} كجم`
-  }
-  if (unit === 'sar') {
-    return `${formatMoney(n)} ر.س`
-  }
-  return `${new Intl.NumberFormat('ar-SA', {
+  const formatted = new Intl.NumberFormat('ar-SA', {
     minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  }).format(n)}`
+    maximumFractionDigits: unit === 'kg' ? 3 : 2,
+  }).format(n)
+  const labels: Record<Unit, string> = {
+    kg: 'كيلو',
+    piece: 'حبة',
+    carton: 'كرتون',
+    pack: 'شد',
+  }
+  return `${formatted} ${labels[unit]}`
 }
 
 export function expectedQty(day: ItemDay): number {
@@ -137,6 +137,7 @@ export function lastUnitCost(
   for (let i = 0; i <= 90; i++) {
     const prevKey = toDateKey(addDays(start, -i))
     const rec = data[branch][prevKey]?.[itemId]
+    if (rec && rec.unitPrice > 0) return rec.unitPrice
     if (rec && rec.purchaseQty > 0 && rec.purchaseCost > 0) {
       return rec.purchaseCost / rec.purchaseQty
     }
@@ -144,10 +145,24 @@ export function lastUnitCost(
   return 0
 }
 
-export function consumedCost(item: CatalogItem, day: ItemDay, fallbackUnitCost = 0): number {
+export function lastSupplier(
+  data: InventoryData,
+  branch: BranchId,
+  currentKey: string,
+  itemId: string,
+): string {
+  const start = parseDateKey(currentKey)
+  for (let i = 0; i <= 90; i++) {
+    const prevKey = toDateKey(addDays(start, -i))
+    const rec = data[branch][prevKey]?.[itemId]
+    if (rec?.supplier) return rec.supplier
+  }
+  return ''
+}
+
+export function consumedCost(_item: CatalogItem, day: ItemDay, fallbackUnitCost = 0): number {
   const used = consumedQty(day)
   if (used <= 0) return 0
-  if (item.unit === 'sar') return used
   const cost = unitCost(day) || fallbackUnitCost
   if (cost > 0) return used * cost
   return 0
@@ -189,6 +204,7 @@ export function resolveItemDay(
       ...emptyItemDay(),
       ...existing,
       unitPrice,
+      supplier: existing.supplier ?? '',
     }
   }
   return emptyItemDay(lastCountedClosing(data, branch, key, itemId))
@@ -197,7 +213,12 @@ export function resolveItemDay(
 export function dayHasActivity(record: DayRecord | undefined): boolean {
   if (!record) return false
   return Object.values(record).some(
-    (item) => item.counted || item.purchaseQty !== 0 || item.purchaseCost !== 0 || item.openingQty !== 0,
+    (item) =>
+      item.counted ||
+      item.purchaseQty !== 0 ||
+      item.purchaseCost !== 0 ||
+      item.openingQty !== 0 ||
+      Boolean(item.supplier),
   )
 }
 

@@ -1,12 +1,25 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { CATALOG, CATEGORIES, UNIT_LABEL, priceLabel, type CatalogItem, type CategoryId } from './catalog'
+import {
+  CATEGORIES,
+  UNITS,
+  UNIT_LABEL,
+  mergeCatalog,
+  type CatalogItem,
+  type CategoryId,
+  type ExtraItem,
+  type Unit,
+} from './catalog'
 import {
   exportInventory,
   importInventory,
+  loadExtras,
   loadInventory,
   loadPrices,
+  loadUnitOverrides,
+  saveExtras,
   saveInventory,
   savePrices,
+  saveUnitOverrides,
 } from './storage'
 import {
   ARABIC_DAYS,
@@ -19,6 +32,7 @@ import {
   expectedQty,
   formatMoney,
   formatQty,
+  lastSupplier,
   lastUnitCost,
   lineTotal,
   parseNum,
@@ -27,6 +41,7 @@ import {
   type InventoryData,
   type ItemDay,
   type PriceList,
+  type UnitOverrides,
 } from './types'
 
 type Mode = 'morning' | 'evening' | 'prices' | 'report'
@@ -45,6 +60,8 @@ function InventoryApp() {
   const now = todayParts()
   const [data, setData] = useState<InventoryData>(() => loadInventory())
   const [prices, setPrices] = useState<PriceList>(() => loadPrices())
+  const [extras, setExtras] = useState<ExtraItem[]>(() => loadExtras())
+  const [units, setUnits] = useState<UnitOverrides>(() => loadUnitOverrides())
   const [branch, setBranch] = useState<BranchId>('wasita')
   const [year, setYear] = useState(now.year)
   const [month, setMonth] = useState(now.month)
@@ -59,14 +76,17 @@ function InventoryApp() {
   const totalDays = daysInMonth(year, month)
   const key = dateKeyFromParts(year, month, day)
   const weekday = weekdayLabel(year, month, day)
+  const allItems = useMemo(() => mergeCatalog(extras, units), [extras, units])
 
   useEffect(() => {
     saveInventory(data)
     savePrices(prices)
+    saveExtras(extras)
+    saveUnitOverrides(units)
     setSavedFlash(true)
     const t = window.setTimeout(() => setSavedFlash(false), 1200)
     return () => window.clearTimeout(t)
-  }, [data, prices])
+  }, [data, prices, extras, units])
 
   useEffect(() => {
     const max = daysInMonth(year, month)
@@ -101,47 +121,72 @@ function InventoryApp() {
     }))
   }
 
+  const setItemUnit = (itemId: string, unit: Unit) => {
+    setUnits((prev) => ({ ...prev, [itemId]: unit }))
+  }
+
   const patchPurchase = (item: CatalogItem, qty: number, unitPrice: number) => {
-    const cost = lineTotal(qty, unitPrice, item.unit)
     patchItem(item.id, {
       purchaseQty: qty,
-      unitPrice: item.unit === 'sar' ? 1 : unitPrice,
-      purchaseCost: cost,
+      unitPrice,
+      purchaseCost: lineTotal(qty, unitPrice),
     })
-    if (item.unit !== 'sar' && unitPrice > 0) setListedPrice(item.id, unitPrice)
+    if (unitPrice > 0) setListedPrice(item.id, unitPrice)
+  }
+
+  const addItem = (categoryId: CategoryId, name: string, unit: Unit) => {
+    const trimmed = name.trim()
+    if (!trimmed) return
+    setExtras((prev) => [
+      ...prev,
+      { id: `custom-${Date.now()}`, name: trimmed, category: categoryId, unit },
+    ])
+  }
+
+  const removeItem = (itemId: string) => {
+    setExtras((prev) => prev.filter((item) => item.id !== itemId))
   }
 
   const visibleItems = useMemo(() => {
     const q = query.trim()
-    return CATALOG.filter((item) => {
+    return allItems.filter((item) => {
       if (category !== 'all' && item.category !== category) return false
       if (mode === 'evening' && cycle === 'daily' && item.countCycle !== 'daily') return false
       if (q && !item.name.includes(q)) return false
       return true
     })
-  }, [category, cycle, mode, query])
+  }, [allItems, category, cycle, mode, query])
+
+  const grouped = CATEGORIES.map((cat) => ({
+    cat,
+    items: visibleItems.filter((item) => item.category === cat.id),
+  })).filter((group) => {
+    if (group.items.length > 0) return true
+    if (query.trim()) return false
+    if (mode !== 'morning' && mode !== 'prices') return false
+    return category === 'all' || category === group.cat.id
+  })
 
   const rows = visibleItems.map((item) => ({
     item,
     day: resolveItemDay(data, branch, key, item.id),
   }))
 
-  const allRows = CATALOG.map((item) => ({
+  const allRows = allItems.map((item) => ({
     item,
     day: resolveItemDay(data, branch, key, item.id),
   }))
 
   const purchaseCostTotal = allRows.reduce((sum, row) => sum + (row.day.purchaseCost || 0), 0)
-  const countedDaily = CATALOG.filter((item) => item.countCycle === 'daily').filter(
+  const countedDaily = allItems.filter((item) => item.countCycle === 'daily').filter(
     (item) => resolveItemDay(data, branch, key, item.id).counted,
   ).length
-  const dailyCount = CATALOG.filter((item) => item.countCycle === 'daily').length
+  const dailyCount = allItems.filter((item) => item.countCycle === 'daily').length
   const lowStock = allRows.filter(
     (row) => row.day.counted && row.day.closingQty < row.item.minStock,
   )
   const consumptionCost = allRows.reduce(
-    (sum, row) =>
-      sum + consumedCost(row.item, row.day, listedPrice(row.item.id, row.day)),
+    (sum, row) => sum + consumedCost(row.item, row.day, listedPrice(row.item.id, row.day)),
     0,
   )
   const negativeCount = allRows.filter((row) => row.day.counted && consumedQty(row.day) < 0)
@@ -184,11 +229,13 @@ function InventoryApp() {
 
   const onImport = async (file: File | undefined) => {
     if (!file) return
-      try {
-        const imported = await importInventory(file)
-        setData(imported.data)
-        setPrices(imported.prices)
-      } catch {
+    try {
+      const imported = await importInventory(file)
+      setData(imported.data)
+      setPrices(imported.prices)
+      setExtras(imported.extras)
+      setUnits(imported.units)
+    } catch {
       window.alert('تعذر قراءة ملف النسخة الاحتياطية')
     }
   }
@@ -206,7 +253,7 @@ function InventoryApp() {
           </span>
           <div>
             <h1>مخزون شاورما</h1>
-            <p>صباح: المشتريات · مساء: الجرد · الموجود من أمس يُنقل تلقائياً</p>
+            <p>الموجود الآن · الجديد · السعر · المورد</p>
           </div>
         </div>
         <nav className="inv-links" aria-label="صفحات النظام">
@@ -288,55 +335,54 @@ function InventoryApp() {
       </section>
 
       {mode !== 'prices' && (
-      <section className="inv-day no-print">
-        <div className="inv-day-head">
-          <div>
-            <h2>
-              {weekday} {day} — {monthLabel}
-            </h2>
-            <p>أول المدة = الموجود في المخزن أول اليوم (عادة الباقي من جرد أمس)</p>
-          </div>
-          <div className="inv-month-nav">
-            <button type="button" onClick={() => shiftMonth(-1)} aria-label="الشهر السابق">
-              ›
-            </button>
-            <strong>{monthLabel}</strong>
-            <button type="button" onClick={() => shiftMonth(1)} aria-label="الشهر التالي">
-              ‹
-            </button>
-            <button type="button" className="ghost" onClick={goToday}>
-              اليوم
-            </button>
-          </div>
-        </div>
-        <div className="inv-day-grid" role="listbox" aria-label="أيام الشهر">
-          {Array.from({ length: totalDays }, (_, i) => i + 1).map((d) => {
-            const k = dateKeyFromParts(year, month, d)
-            const filled = dayHasActivity(data[branch][k])
-            const isToday =
-              d === now.day && month === now.month && year === now.year
-            return (
-              <button
-                key={d}
-                type="button"
-                role="option"
-                aria-selected={day === d}
-                className={[
-                  'inv-day-btn',
-                  day === d ? 'selected' : '',
-                  filled ? 'filled' : '',
-                  isToday ? 'today' : '',
-                ]
-                  .filter(Boolean)
-                  .join(' ')}
-                onClick={() => setDay(d)}
-              >
-                {d}
+        <section className="inv-day no-print">
+          <div className="inv-day-head">
+            <div>
+              <h2>
+                {weekday} {day} — {monthLabel}
+              </h2>
+              <p>الموجود الآن = الباقي من جرد أمس · الجديد = المشترى اليوم · السعر منفصل عن الكمية</p>
+            </div>
+            <div className="inv-month-nav">
+              <button type="button" onClick={() => shiftMonth(-1)} aria-label="الشهر السابق">
+                ›
               </button>
-            )
-          })}
-        </div>
-      </section>
+              <strong>{monthLabel}</strong>
+              <button type="button" onClick={() => shiftMonth(1)} aria-label="الشهر التالي">
+                ‹
+              </button>
+              <button type="button" className="ghost" onClick={goToday}>
+                اليوم
+              </button>
+            </div>
+          </div>
+          <div className="inv-day-grid" role="listbox" aria-label="أيام الشهر">
+            {Array.from({ length: totalDays }, (_, i) => i + 1).map((d) => {
+              const k = dateKeyFromParts(year, month, d)
+              const filled = dayHasActivity(data[branch][k])
+              const isToday = d === now.day && month === now.month && year === now.year
+              return (
+                <button
+                  key={d}
+                  type="button"
+                  role="option"
+                  aria-selected={day === d}
+                  className={[
+                    'inv-day-btn',
+                    day === d ? 'selected' : '',
+                    filled ? 'filled' : '',
+                    isToday ? 'today' : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                  onClick={() => setDay(d)}
+                >
+                  {d}
+                </button>
+              )
+            })}
+          </div>
+        </section>
       )}
 
       {mode !== 'report' && (
@@ -398,61 +444,87 @@ function InventoryApp() {
         <section className="inv-sheet">
           <div className="inv-sheet-head">
             <h3>إدخال مشتريات بداية اليوم</h3>
-            <p>الخضار بالريال · الدجاج والبهارات بالكيلو · الباقي حسب الوحدة المكتوبة</p>
-          </div>
-          <div className="inv-howto">
-            <h4>طريقة التسجيل</h4>
-            <ol>
-              <li>
-                <b>أول المدة:</b> الكمية الموجودة عند فتح المطعم. أول يوم اكتب الموجود الآن، وبعدها
-                النظام ينقلها من جرد أمس تلقائياً.
-              </li>
-              <li>
-                <b>المشترى اليوم:</b> اكتب الكمية، ثم <b>سعر الوحدة</b> (سعر الكيلو أو الكرتون).
-                الإجمالي يُحسب تلقائياً. الخضار تُكتب بالريال.
-              </li>
-              <li>
-                <b>المساء:</b> اعدّ الباقي الفعلي واكتبه في الجرد. المستهلك = أول المدة + المشترى −
-                الجرد.
-              </li>
-            </ol>
             <p>
-              مثال: دجاج أول المدة 10 كجم، اشتريت 15 كجم، الجرد مساءً 8 كجم → المستهلك 17 كجم.
+              الموجود الآن = الكمية الحالية · الجديد = كمية المشترى · السعر = سعر الوحدة بالريال ·
+              المورد = اسم المورد
             </p>
           </div>
-          <div className="inv-table-wrap">
-            <table className="inv-table">
-              <thead>
-                <tr>
-                  <th>الصنف</th>
-                  <th>الوحدة</th>
-                  <th>أول المدة (الموجود الآن)</th>
-                  <th>كمية المشترى</th>
-                  <th>سعر الوحدة</th>
-                  <th>الإجمالي</th>
-                  <th>المتوقع نهاية اليوم</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map(({ item, day: rec }) => {
-                  const unitPrice = listedPrice(item.id, rec)
-                  return (
-                    <ItemMorningRow
-                      key={item.id}
-                      item={item}
-                      rec={rec}
-                      unitPrice={unitPrice}
-                      onOpening={(value) => patchItem(item.id, { openingQty: value })}
-                      onQty={(value) => patchPurchase(item, value, unitPrice)}
-                      onPrice={(value) =>
-                        patchPurchase(item, item.unit === 'sar' ? value : rec.purchaseQty, value)
-                      }
-                    />
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
+          {grouped.map(({ cat, items }) => (
+            <div key={cat.id} className="inv-cat">
+              <h4>{cat.name}</h4>
+              <div className="inv-table-wrap">
+                <table className="inv-table">
+                  <thead>
+                    <tr>
+                      <th>الصنف</th>
+                      <th>الوحدة</th>
+                      <th>الموجود الآن</th>
+                      <th>الجديد</th>
+                      <th>السعر</th>
+                      <th>المورد</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items.map((item) => {
+                      const rec = resolveItemDay(data, branch, key, item.id)
+                      const unitPrice = listedPrice(item.id, rec)
+                      return (
+                        <tr key={item.id}>
+                          <td>
+                            <div className="inv-name">
+                              <strong>{item.name}</strong>
+                              {item.custom && (
+                                <button
+                                  type="button"
+                                  className="tiny danger"
+                                  onClick={() => removeItem(item.id)}
+                                >
+                                  حذف
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                          <td>
+                            <UnitSelect value={item.unit} onChange={(unit) => setItemUnit(item.id, unit)} />
+                          </td>
+                          <td>
+                            <NumInput
+                              step={item.step}
+                              value={rec.openingQty}
+                              onChange={(value) => patchItem(item.id, { openingQty: value })}
+                            />
+                          </td>
+                          <td>
+                            <NumInput
+                              step={item.step}
+                              value={rec.purchaseQty}
+                              onChange={(value) => patchPurchase(item, value, unitPrice)}
+                            />
+                          </td>
+                          <td>
+                            <NumInput
+                              step={0.01}
+                              value={unitPrice}
+                              onChange={(value) => patchPurchase(item, rec.purchaseQty, value)}
+                            />
+                          </td>
+                          <td>
+                            <input
+                              className="text-input"
+                              value={rec.supplier}
+                              placeholder={lastSupplier(data, branch, key, item.id) || 'اسم المورد'}
+                              onChange={(e) => patchItem(item.id, { supplier: e.target.value })}
+                            />
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <AddItemRow categoryId={cat.id} onAdd={addItem} />
+            </div>
+          ))}
         </section>
       )}
 
@@ -460,46 +532,44 @@ function InventoryApp() {
         <section className="inv-sheet">
           <div className="inv-sheet-head">
             <h3>أسعار الأصناف — {BRANCHES.find((b) => b.id === branch)?.name}</h3>
-            <p>
-              اكتب سعر الوحدة مرة واحدة (سعر الكيلو أو الكرتون أو الحبة). يظهر تلقائياً عند إدخال
-              مشتريات الصباح، ويمكن تعديله أي يوم يتغير فيه السعر.
-            </p>
+            <p>سعر الوحدة بالريال حسب الوحدة المختارة (حبة · كيلو · كرتون · شد)</p>
           </div>
-          <div className="inv-table-wrap">
-            <table className="inv-table">
-              <thead>
-                <tr>
-                  <th>الصنف</th>
-                  <th>الوحدة</th>
-                  <th>سعر الوحدة (ريال)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map(({ item }) => (
-                  <tr key={item.id}>
-                    <td>
-                      <div className="inv-name">
-                        <strong>{item.name}</strong>
-                        <small>{priceLabel(item.unit)}</small>
-                      </div>
-                    </td>
-                    <td>{UNIT_LABEL[item.unit]}</td>
-                    <td>
-                      <input
-                        type="number"
-                        inputMode="decimal"
-                        min="0"
-                        step={item.unit === 'sar' ? 1 : 0.01}
-                        value={prices[branch][item.id] || ''}
-                        placeholder="0"
-                        onChange={(e) => setListedPrice(item.id, parseNum(e.target.value))}
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          {grouped.map(({ cat, items }) => (
+            <div key={cat.id} className="inv-cat">
+              <h4>{cat.name}</h4>
+              <div className="inv-table-wrap">
+                <table className="inv-table">
+                  <thead>
+                    <tr>
+                      <th>الصنف</th>
+                      <th>الوحدة</th>
+                      <th>السعر</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items.map((item) => (
+                      <tr key={item.id}>
+                        <td>
+                          <strong>{item.name}</strong>
+                        </td>
+                        <td>
+                          <UnitSelect value={item.unit} onChange={(unit) => setItemUnit(item.id, unit)} />
+                        </td>
+                        <td>
+                          <NumInput
+                            step={0.01}
+                            value={prices[branch][item.id] || 0}
+                            onChange={(value) => setListedPrice(item.id, value)}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <AddItemRow categoryId={cat.id} onAdd={addItem} />
+            </div>
+          ))}
         </section>
       )}
 
@@ -507,10 +577,7 @@ function InventoryApp() {
         <section className="inv-sheet">
           <div className="inv-sheet-head">
             <h3>جرد نهاية اليوم</h3>
-            <p>
-              اكتب الباقي الفعلي بعد العد. الجرد اليومي للدجاج والخضار والخبز، وباقي الأصناف مرة في
-              الأسبوع.
-            </p>
+            <p>اكتب الباقي الفعلي بعد العد. المستهلك = الموجود الآن + الجديد − الجرد.</p>
           </div>
           {negativeCount.length > 0 && (
             <p className="inv-warn">
@@ -522,11 +589,12 @@ function InventoryApp() {
               <thead>
                 <tr>
                   <th>الصنف</th>
-                  <th>أول المدة</th>
-                  <th>المشترى</th>
+                  <th>الوحدة</th>
+                  <th>الموجود الآن</th>
+                  <th>الجديد</th>
                   <th>الجرد (الباقي)</th>
                   <th>المستهلك</th>
-                  <th>الحالة</th>
+                  <th>المورد</th>
                   <th className="no-print">اعتماد</th>
                 </tr>
               </thead>
@@ -538,40 +606,28 @@ function InventoryApp() {
                   return (
                     <tr key={item.id} className={low || bad ? 'row-alert' : rec.counted ? 'row-ok' : ''}>
                       <td>
-                        <div className="inv-name">
-                          <strong>{item.name}</strong>
-                          <small>
-                            {UNIT_LABEL[item.unit]} · حد {formatQty(item.minStock, item.unit)}
-                          </small>
-                        </div>
+                        <strong>{item.name}</strong>
+                      </td>
+                      <td>
+                        <UnitSelect value={item.unit} onChange={(unit) => setItemUnit(item.id, unit)} />
                       </td>
                       <td>{formatQty(rec.openingQty, item.unit)}</td>
                       <td>{formatQty(rec.purchaseQty, item.unit)}</td>
                       <td>
-                        <input
-                          type="number"
-                          inputMode="decimal"
-                          min="0"
+                        <NumInput
                           step={item.step}
-                          value={rec.counted || rec.closingQty ? rec.closingQty : ''}
+                          value={rec.counted || rec.closingQty ? rec.closingQty : 0}
                           placeholder={String(expectedQty(rec))}
-                          onChange={(e) =>
-                            patchItem(item.id, {
-                              closingQty: parseNum(e.target.value),
-                              counted: true,
-                            })
+                          emptyWhenZero={!rec.counted && rec.closingQty === 0}
+                          onChange={(value) =>
+                            patchItem(item.id, { closingQty: value, counted: true })
                           }
                         />
                       </td>
                       <td className={bad ? 'neg' : ''}>
                         {rec.counted ? formatQty(used, item.unit) : '—'}
                       </td>
-                      <td>
-                        {!rec.counted && <span className="pill wait">بانتظار الجرد</span>}
-                        {rec.counted && low && <span className="pill low">ناقص</span>}
-                        {rec.counted && bad && <span className="pill low">خطأ عدّ</span>}
-                        {rec.counted && !low && !bad && <span className="pill ok">مكتمل</span>}
-                      </td>
+                      <td>{rec.supplier || lastSupplier(data, branch, key, item.id) || '—'}</td>
                       <td className="no-print">
                         <button type="button" className="tiny" onClick={() => copyExpectedToClosing(item)}>
                           المتوقع
@@ -589,12 +645,13 @@ function InventoryApp() {
       {mode === 'report' && (
         <section className="inv-sheet">
           <div className="inv-sheet-head">
-            <h3>تقرير {weekday} {day}</h3>
+            <h3>
+              تقرير {weekday} {day}
+            </h3>
             <p>
               {BRANCHES.find((b) => b.id === branch)?.name} · مشتريات {formatMoney(purchaseCostTotal)} ر.س
             </p>
           </div>
-
           <div className="inv-report-grid">
             <article>
               <h4>أصناف تحت الحد الأدنى</h4>
@@ -617,16 +674,18 @@ function InventoryApp() {
               <h4>استهلاك مقدّر حسب المجموعة</h4>
               <ul>
                 {CATEGORIES.map((cat) => {
-                  const sum = CATALOG.filter((item) => item.category === cat.id).reduce(
-                    (acc, item) =>
-                      acc +
-                      consumedCost(
-                        item,
-                        resolveItemDay(data, branch, key, item.id),
-                        listedPrice(item.id, resolveItemDay(data, branch, key, item.id)),
-                      ),
-                    0,
-                  )
+                  const sum = allItems
+                    .filter((item) => item.category === cat.id)
+                    .reduce(
+                      (acc, item) =>
+                        acc +
+                        consumedCost(
+                          item,
+                          resolveItemDay(data, branch, key, item.id),
+                          listedPrice(item.id, resolveItemDay(data, branch, key, item.id)),
+                        ),
+                      0,
+                    )
                   if (!sum) return null
                   return (
                     <li key={cat.id}>
@@ -638,28 +697,30 @@ function InventoryApp() {
               </ul>
             </article>
           </div>
-
           <div className="inv-notes">
             <h4>معنى الخانات</h4>
             <ol>
               <li>
-                <b>أول المدة:</b> الموجود في المخزن أول اليوم. أول مرة تكتبها بنفسك، وبعدها تُنقل من
-                جرد أمس.
+                <b>الموجود الآن:</b> الكمية الحالية أول اليوم (من جرد أمس).
               </li>
               <li>
-                <b>المشترى:</b> الكمية × سعر الوحدة. الأسعار تُحفظ من تبويب «الأسعار».
+                <b>الجديد:</b> كمية المشترى اليوم، و<b>السعر</b> سعر الوحدة بالريال (منفصل عن الكمية).
               </li>
               <li>
-                <b>الجرد:</b> الباقي الفعلي بعد العد مساءً.
+                <b>المورد:</b> اسم المورد لهذا الصنف.
               </li>
               <li>
-                <b>المستهلك:</b> أول المدة + المشترى − الجرد، ويصير جرد اليوم أول مدة لبكرة.
+                <b>الوحدة:</b> حبة أو كيلو أو كرتون أو شد، ويمكن تغييرها لأي صنف.
               </li>
             </ol>
           </div>
-
           <div className="inv-backup no-print">
-            <button type="button" onClick={() => exportInventory(data, prices)}>
+            <button
+              type="button"
+              onClick={() =>
+                exportInventory({ version: 3, data, prices, extras, units })
+              }
+            >
               تنزيل نسخة احتياطية
             </button>
             <button type="button" className="ghost" onClick={() => fileRef.current?.click()}>
@@ -689,101 +750,98 @@ function InventoryApp() {
             <tr>
               <th>الصنف</th>
               <th>الوحدة</th>
-              <th>أول المدة</th>
-              <th>مشترى</th>
+              <th>الموجود الآن</th>
+              <th>الجديد</th>
               <th>الجرد الفعلي</th>
             </tr>
           </thead>
           <tbody>
-            {(cycle === 'daily' ? CATALOG.filter((i) => i.countCycle === 'daily') : CATALOG).map(
-              (item) => {
-                const rec = resolveItemDay(data, branch, key, item.id)
-                return (
-                  <tr key={item.id}>
-                    <td>{item.name}</td>
-                    <td>{UNIT_LABEL[item.unit]}</td>
-                    <td>{formatQty(rec.openingQty, item.unit)}</td>
-                    <td>{formatQty(rec.purchaseQty, item.unit)}</td>
-                    <td />
-                  </tr>
-                )
-              },
-            )}
+            {visibleItems.map((item) => {
+              const rec = resolveItemDay(data, branch, key, item.id)
+              return (
+                <tr key={item.id}>
+                  <td>{item.name}</td>
+                  <td>{UNIT_LABEL[item.unit]}</td>
+                  <td>{formatQty(rec.openingQty, item.unit)}</td>
+                  <td>{formatQty(rec.purchaseQty, item.unit)}</td>
+                  <td />
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </section>
 
-      <footer className="inv-footer no-print">
-        البيانات تُحفظ على هذا الجهاز · الأحمر والأبيض لواجهة تشغيل يومية واضحة
-      </footer>
+      <footer className="inv-footer no-print">البيانات تُحفظ على هذا الجهاز</footer>
     </div>
   )
 }
 
-function ItemMorningRow({
-  item,
-  rec,
-  unitPrice,
-  onOpening,
-  onQty,
-  onPrice,
-}: {
-  item: CatalogItem
-  rec: ItemDay
-  unitPrice: number
-  onOpening: (value: number) => void
-  onQty: (value: number) => void
-  onPrice: (value: number) => void
-}) {
-  const isSar = item.unit === 'sar'
-  const total = lineTotal(rec.purchaseQty, unitPrice, item.unit)
+function UnitSelect({ value, onChange }: { value: Unit; onChange: (unit: Unit) => void }) {
   return (
-    <tr>
-      <td>
-        <div className="inv-name">
-          <strong>{item.name}</strong>
-          <small>
-            {item.countCycle === 'daily' ? 'جرد يومي' : 'جرد أسبوعي'} · {priceLabel(item.unit)}
-          </small>
-        </div>
-      </td>
-      <td>{UNIT_LABEL[item.unit]}</td>
-      <td>
-        <input
-          type="number"
-          inputMode="decimal"
-          min="0"
-          step={item.step}
-          value={rec.openingQty || ''}
-          placeholder="0"
-          onChange={(e) => onOpening(parseNum(e.target.value))}
-        />
-      </td>
-      <td>
-        <input
-          type="number"
-          inputMode="decimal"
-          min="0"
-          step={item.step}
-          value={rec.purchaseQty || ''}
-          placeholder="0"
-          onChange={(e) => onQty(parseNum(e.target.value))}
-        />
-      </td>
-      <td>
-        <input
-          type="number"
-          inputMode="decimal"
-          min="0"
-          step={isSar ? 1 : 0.01}
-          value={isSar ? rec.purchaseQty || '' : unitPrice || ''}
-          placeholder="0"
-          onChange={(e) => onPrice(parseNum(e.target.value))}
-        />
-      </td>
-      <td>{formatMoney(total)} ر.س</td>
-      <td>{formatQty(expectedQty(rec), item.unit)}</td>
-    </tr>
+    <select value={value} onChange={(e) => onChange(e.target.value as Unit)} aria-label="الوحدة">
+      {UNITS.map((unit) => (
+        <option key={unit.id} value={unit.id}>
+          {unit.name}
+        </option>
+      ))}
+    </select>
+  )
+}
+
+function NumInput({
+  value,
+  onChange,
+  step,
+  placeholder,
+  emptyWhenZero,
+}: {
+  value: number
+  onChange: (value: number) => void
+  step: number
+  placeholder?: string
+  emptyWhenZero?: boolean
+}) {
+  return (
+    <input
+      type="number"
+      inputMode="decimal"
+      min="0"
+      step={step}
+      value={emptyWhenZero && !value ? '' : value || ''}
+      placeholder={placeholder ?? '0'}
+      onChange={(e) => onChange(parseNum(e.target.value))}
+    />
+  )
+}
+
+function AddItemRow({
+  categoryId,
+  onAdd,
+}: {
+  categoryId: CategoryId
+  onAdd: (categoryId: CategoryId, name: string, unit: Unit) => void
+}) {
+  const [name, setName] = useState('')
+  const [unit, setUnit] = useState<Unit>('kg')
+  return (
+    <form
+      className="inv-add"
+      onSubmit={(e) => {
+        e.preventDefault()
+        onAdd(categoryId, name, unit)
+        setName('')
+      }}
+    >
+      <input
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder="إضافة صنف جديد لهذا القسم"
+        aria-label="اسم الصنف الجديد"
+      />
+      <UnitSelect value={unit} onChange={setUnit} />
+      <button type="submit">إضافة</button>
+    </form>
   )
 }
 

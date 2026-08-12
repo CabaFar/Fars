@@ -1,15 +1,4 @@
-export type Unit =
-  | 'kg'
-  | 'sar'
-  | 'carton'
-  | 'tank'
-  | 'piece'
-  | 'bag'
-  | 'can'
-  | 'gallon'
-  | 'bucket'
-  | 'bundle'
-  | 'box'
+export type Unit = 'piece' | 'kg' | 'carton' | 'pack'
 
 export type CategoryId =
   | 'chicken'
@@ -31,316 +20,150 @@ export type CatalogItem = {
   minStock: number
   step: number
   countCycle: CountCycle
+  custom?: boolean
 }
 
-export const CATEGORIES: { id: CategoryId; name: string; hint: string }[] = [
-  { id: 'chicken', name: 'الدجاج', hint: 'يُسجَّل بالكيلو والجرام' },
-  { id: 'spices', name: 'البهارات', hint: 'يُسجَّل بالكيلو والجرام' },
-  { id: 'veg', name: 'الخضار', hint: 'يُسجَّل بالقيمة بالريال' },
-  { id: 'dry', name: 'جاف وسوائل', hint: 'كرتون · تنك · كيس' },
-  { id: 'frozen', name: 'المجمدات', hint: 'يُسجَّل بالكرتون' },
-  { id: 'sauces', name: 'الصوصات', hint: 'علبة · كرتون · جالون · سطل' },
-  { id: 'bakery', name: 'المخبوزات والطحين', hint: 'حبة · كيس · ربطة' },
-  { id: 'plastic', name: 'بلاستيك وتغليف', hint: 'مستهلكات يومية وأسبوعية' },
+export type ExtraItem = {
+  id: string
+  name: string
+  category: CategoryId
+  unit: Unit
+}
+
+export const CATEGORIES: { id: CategoryId; name: string }[] = [
+  { id: 'chicken', name: 'الدجاج' },
+  { id: 'spices', name: 'البهارات' },
+  { id: 'veg', name: 'الخضار' },
+  { id: 'dry', name: 'جاف وسوائل' },
+  { id: 'frozen', name: 'المجمدات' },
+  { id: 'sauces', name: 'الصوصات' },
+  { id: 'bakery', name: 'المخبوزات والطحين' },
+  { id: 'plastic', name: 'بلاستيك وتغليف' },
+]
+
+export const UNITS: { id: Unit; name: string }[] = [
+  { id: 'piece', name: 'حبة' },
+  { id: 'kg', name: 'كيلو' },
+  { id: 'carton', name: 'كرتون' },
+  { id: 'pack', name: 'شد' },
 ]
 
 export const UNIT_LABEL: Record<Unit, string> = {
-  kg: 'كجم',
-  sar: 'ريال',
-  carton: 'كرتون',
-  tank: 'تنك',
   piece: 'حبة',
-  bag: 'كيس',
-  can: 'علبة',
-  gallon: 'جالون',
-  bucket: 'سطل',
-  bundle: 'ربطة',
-  box: 'علبة',
+  kg: 'كيلو',
+  carton: 'كرتون',
+  pack: 'شد',
+}
+
+export function stepForUnit(unit: Unit): number {
+  return unit === 'kg' ? 0.05 : 1
 }
 
 export function priceLabel(unit: Unit): string {
-  if (unit === 'sar') return 'السعر (ريال)'
   return `سعر ال${UNIT_LABEL[unit]}`
 }
 
+function item(
+  id: string,
+  name: string,
+  category: CategoryId,
+  unit: Unit,
+  minStock: number,
+  countCycle: CountCycle,
+): CatalogItem {
+  return { id, name, category, unit, minStock, step: stepForUnit(unit), countCycle }
+}
+
 export const CATALOG: CatalogItem[] = [
-  {
-    id: 'chicken',
-    name: 'دجاج',
-    category: 'chicken',
-    unit: 'kg',
-    minStock: 8,
-    step: 0.05,
-    countCycle: 'daily',
-  },
-  {
-    id: 'spices',
-    name: 'بهارات',
-    category: 'spices',
-    unit: 'kg',
-    minStock: 1,
-    step: 0.05,
-    countCycle: 'daily',
-  },
+  item('chicken', 'دجاج', 'chicken', 'kg', 8, 'daily'),
+  item('spices', 'بهارات', 'spices', 'kg', 1, 'daily'),
 
-  { id: 'lettuce', name: 'خس', category: 'veg', unit: 'sar', minStock: 20, step: 1, countCycle: 'daily' },
-  { id: 'hot-pepper', name: 'فلفل حار', category: 'veg', unit: 'sar', minStock: 10, step: 1, countCycle: 'daily' },
-  { id: 'mild-pepper', name: 'فلفل بارد', category: 'veg', unit: 'sar', minStock: 10, step: 1, countCycle: 'daily' },
-  {
-    id: 'red-hot-pepper',
-    name: 'فلفل حار أحمر',
-    category: 'veg',
-    unit: 'sar',
-    minStock: 8,
-    step: 1,
-    countCycle: 'daily',
-  },
-  { id: 'tomato', name: 'طماط', category: 'veg', unit: 'sar', minStock: 20, step: 1, countCycle: 'daily' },
-  { id: 'parsley', name: 'بقدونس', category: 'veg', unit: 'sar', minStock: 8, step: 1, countCycle: 'daily' },
-  { id: 'cucumber', name: 'خيار', category: 'veg', unit: 'sar', minStock: 10, step: 1, countCycle: 'daily' },
-  { id: 'garlic', name: 'ثوم', category: 'veg', unit: 'sar', minStock: 15, step: 1, countCycle: 'daily' },
-  { id: 'orange', name: 'برتقال', category: 'veg', unit: 'sar', minStock: 10, step: 1, countCycle: 'daily' },
-  { id: 'lemon', name: 'ليمون', category: 'veg', unit: 'sar', minStock: 10, step: 1, countCycle: 'daily' },
-  {
-    id: 'fresh-potato',
-    name: 'بطاطس طازج',
-    category: 'veg',
-    unit: 'sar',
-    minStock: 20,
-    step: 1,
-    countCycle: 'daily',
-  },
+  item('lettuce', 'خس', 'veg', 'kg', 1, 'daily'),
+  item('hot-pepper', 'فلفل حار', 'veg', 'kg', 1, 'daily'),
+  item('mild-pepper', 'فلفل بارد', 'veg', 'kg', 1, 'daily'),
+  item('red-hot-pepper', 'فلفل حار أحمر', 'veg', 'kg', 1, 'daily'),
+  item('tomato', 'طماط', 'veg', 'kg', 1, 'daily'),
+  item('parsley', 'بقدونس', 'veg', 'kg', 1, 'daily'),
+  item('cucumber', 'خيار', 'veg', 'kg', 1, 'daily'),
+  item('garlic', 'ثوم', 'veg', 'kg', 1, 'daily'),
+  item('orange', 'برتقال', 'veg', 'kg', 1, 'daily'),
+  item('lemon', 'ليمون', 'veg', 'kg', 1, 'daily'),
+  item('fresh-potato', 'بطاطس طازج', 'veg', 'kg', 1, 'daily'),
 
-  { id: 'salt', name: 'ملح', category: 'dry', unit: 'carton', minStock: 1, step: 1, countCycle: 'weekly' },
-  { id: 'sugar', name: 'سكر', category: 'dry', unit: 'carton', minStock: 1, step: 1, countCycle: 'weekly' },
-  {
-    id: 'zahreti-oil',
-    name: 'زيت زهرتي',
-    category: 'dry',
-    unit: 'carton',
-    minStock: 1,
-    step: 1,
-    countCycle: 'weekly',
-  },
-  { id: 'dalal-oil', name: 'زيت دلال', category: 'dry', unit: 'tank', minStock: 1, step: 1, countCycle: 'weekly' },
-  { id: 'eggs', name: 'بيض', category: 'dry', unit: 'carton', minStock: 1, step: 1, countCycle: 'weekly' },
-  {
-    id: 'food-color',
-    name: 'ملون طعام',
-    category: 'dry',
-    unit: 'carton',
-    minStock: 1,
-    step: 1,
-    countCycle: 'weekly',
-  },
-  { id: 'lemon-salt', name: 'ملح ليمون', category: 'dry', unit: 'bag', minStock: 1, step: 1, countCycle: 'weekly' },
-  { id: 'burghul', name: 'برغل', category: 'dry', unit: 'bag', minStock: 1, step: 1, countCycle: 'weekly' },
+  item('salt', 'ملح', 'dry', 'carton', 1, 'weekly'),
+  item('sugar', 'سكر', 'dry', 'carton', 1, 'weekly'),
+  item('zahreti-oil', 'زيت زهرتي', 'dry', 'carton', 1, 'weekly'),
+  item('dalal-oil', 'زيت دلال', 'dry', 'carton', 1, 'weekly'),
+  item('eggs', 'بيض', 'dry', 'carton', 1, 'weekly'),
+  item('food-color', 'ملون طعام', 'dry', 'carton', 1, 'weekly'),
+  item('lemon-salt', 'ملح ليمون', 'dry', 'pack', 1, 'weekly'),
+  item('burghul', 'برغل', 'dry', 'pack', 1, 'weekly'),
 
-  {
-    id: 'frozen-potato',
-    name: 'بطاطس مجمد',
-    category: 'frozen',
-    unit: 'carton',
-    minStock: 2,
-    step: 1,
-    countCycle: 'weekly',
-  },
-  {
-    id: 'chicken-burger',
-    name: 'برغر دجاج',
-    category: 'frozen',
-    unit: 'carton',
-    minStock: 1,
-    step: 1,
-    countCycle: 'weekly',
-  },
-  { id: 'akkawi', name: 'جبن عكاوي', category: 'frozen', unit: 'carton', minStock: 1, step: 1, countCycle: 'weekly' },
-  {
-    id: 'mozzarella',
-    name: 'موزاريلا',
-    category: 'frozen',
-    unit: 'carton',
-    minStock: 1,
-    step: 1,
-    countCycle: 'weekly',
-  },
-  {
-    id: 'sliced-cheese',
-    name: 'جبن شرائح',
-    category: 'frozen',
-    unit: 'carton',
-    minStock: 1,
-    step: 1,
-    countCycle: 'weekly',
-  },
+  item('frozen-potato', 'بطاطس مجمد', 'frozen', 'carton', 2, 'weekly'),
+  item('chicken-burger', 'برغر دجاج', 'frozen', 'carton', 1, 'weekly'),
+  item('akkawi', 'جبن عكاوي', 'frozen', 'carton', 1, 'weekly'),
+  item('mozzarella', 'موزاريلا', 'frozen', 'carton', 1, 'weekly'),
+  item('sliced-cheese', 'جبن شرائح', 'frozen', 'carton', 1, 'weekly'),
 
-  {
-    id: 'pepper-paste',
-    name: 'معجون فلفل',
-    category: 'sauces',
-    unit: 'can',
-    minStock: 2,
-    step: 1,
-    countCycle: 'weekly',
-  },
-  {
-    id: 'tomato-paste',
-    name: 'معجون طماط',
-    category: 'sauces',
-    unit: 'can',
-    minStock: 2,
-    step: 1,
-    countCycle: 'weekly',
-  },
-  { id: 'ketchup', name: 'كاتشب', category: 'sauces', unit: 'carton', minStock: 1, step: 1, countCycle: 'weekly' },
-  { id: 'vinegar', name: 'خل', category: 'sauces', unit: 'gallon', minStock: 1, step: 1, countCycle: 'weekly' },
-  { id: 'shatta', name: 'شطة', category: 'sauces', unit: 'carton', minStock: 1, step: 1, countCycle: 'weekly' },
-  { id: 'tahini', name: 'طحينة', category: 'sauces', unit: 'carton', minStock: 1, step: 1, countCycle: 'weekly' },
-  {
-    id: 'pomegranate',
-    name: 'دبس رمان',
-    category: 'sauces',
-    unit: 'carton',
-    minStock: 1,
-    step: 1,
-    countCycle: 'weekly',
-  },
-  { id: 'pickles', name: 'مخلل', category: 'sauces', unit: 'bucket', minStock: 1, step: 1, countCycle: 'weekly' },
+  item('pepper-paste', 'معجون فلفل', 'sauces', 'pack', 2, 'weekly'),
+  item('tomato-paste', 'معجون طماط', 'sauces', 'pack', 2, 'weekly'),
+  item('ketchup', 'كاتشب', 'sauces', 'carton', 1, 'weekly'),
+  item('vinegar', 'خل', 'sauces', 'pack', 1, 'weekly'),
+  item('shatta', 'شطة', 'sauces', 'carton', 1, 'weekly'),
+  item('tahini', 'طحينة', 'sauces', 'carton', 1, 'weekly'),
+  item('pomegranate', 'دبس رمان', 'sauces', 'carton', 1, 'weekly'),
+  item('pickles', 'مخلل', 'sauces', 'pack', 1, 'weekly'),
 
-  { id: 'samuli', name: 'صامولي', category: 'bakery', unit: 'piece', minStock: 40, step: 1, countCycle: 'daily' },
-  {
-    id: 'burger-bun',
-    name: 'خبز برغر',
-    category: 'bakery',
-    unit: 'piece',
-    minStock: 20,
-    step: 1,
-    countCycle: 'daily',
-  },
-  { id: 'flour', name: 'طحين', category: 'bakery', unit: 'bag', minStock: 1, step: 1, countCycle: 'weekly' },
-  {
-    id: 'fatoush-bread',
-    name: 'خبز فتوش',
-    category: 'bakery',
-    unit: 'bundle',
-    minStock: 2,
-    step: 1,
-    countCycle: 'daily',
-  },
+  item('samuli', 'صامولي', 'bakery', 'piece', 40, 'daily'),
+  item('burger-bun', 'خبز برغر', 'bakery', 'piece', 20, 'daily'),
+  item('flour', 'طحين', 'bakery', 'pack', 1, 'weekly'),
+  item('fatoush-bread', 'خبز فتوش', 'bakery', 'pack', 2, 'daily'),
 
-  { id: 'arabic-box', name: 'بوكس عربي', category: 'plastic', unit: 'carton', minStock: 1, step: 1, countCycle: 'weekly' },
-  {
-    id: 'potato-cups',
-    name: 'علب بطاطس',
-    category: 'plastic',
-    unit: 'carton',
-    minStock: 1,
-    step: 1,
-    countCycle: 'weekly',
-  },
-  {
-    id: 'sauce-cups',
-    name: 'علب صوصات',
-    category: 'plastic',
-    unit: 'carton',
-    minStock: 1,
-    step: 1,
-    countCycle: 'weekly',
-  },
-  {
-    id: 'dough-bags',
-    name: 'أكياس عجين',
-    category: 'plastic',
-    unit: 'carton',
-    minStock: 1,
-    step: 1,
-    countCycle: 'weekly',
-  },
-  { id: 'gloves', name: 'قفازات', category: 'plastic', unit: 'carton', minStock: 1, step: 1, countCycle: 'weekly' },
-  { id: 'masks', name: 'كمامات', category: 'plastic', unit: 'carton', minStock: 1, step: 1, countCycle: 'weekly' },
-  { id: 'hairnet', name: 'غطاء شعر', category: 'plastic', unit: 'carton', minStock: 1, step: 1, countCycle: 'weekly' },
-  {
-    id: 'burger-foam',
-    name: 'فلين برغر',
-    category: 'plastic',
-    unit: 'carton',
-    minStock: 1,
-    step: 1,
-    countCycle: 'weekly',
-  },
-  {
-    id: 'butter-paper',
-    name: 'ورق ساندويتش زبدة',
-    category: 'plastic',
-    unit: 'carton',
-    minStock: 1,
-    step: 1,
-    countCycle: 'weekly',
-  },
-  { id: 'foil', name: 'قصدير', category: 'plastic', unit: 'carton', minStock: 1, step: 1, countCycle: 'weekly' },
-  { id: 'wrap', name: 'تغليف', category: 'plastic', unit: 'carton', minStock: 1, step: 1, countCycle: 'weekly' },
-  {
-    id: 'paper-bags',
-    name: 'أكياس ورقية',
-    category: 'plastic',
-    unit: 'carton',
-    minStock: 1,
-    step: 1,
-    countCycle: 'weekly',
-  },
-  {
-    id: 'plastic-bags',
-    name: 'أكياس بلاستيك',
-    category: 'plastic',
-    unit: 'carton',
-    minStock: 1,
-    step: 1,
-    countCycle: 'weekly',
-  },
-  {
-    id: 'drink-bags',
-    name: 'أكياس بلاستيك للمشروب',
-    category: 'plastic',
-    unit: 'carton',
-    minStock: 1,
-    step: 1,
-    countCycle: 'weekly',
-  },
-  {
-    id: 'invoice-paper',
-    name: 'ورق فواتير',
-    category: 'plastic',
-    unit: 'carton',
-    minStock: 1,
-    step: 1,
-    countCycle: 'weekly',
-  },
-  {
-    id: 'receipt-paper',
-    name: 'ورق إيصال',
-    category: 'plastic',
-    unit: 'carton',
-    minStock: 1,
-    step: 1,
-    countCycle: 'weekly',
-  },
-  { id: 'staples', name: 'دبابيس', category: 'plastic', unit: 'box', minStock: 1, step: 1, countCycle: 'weekly' },
-  { id: 'forks', name: 'شوك', category: 'plastic', unit: 'carton', minStock: 1, step: 1, countCycle: 'weekly' },
-  {
-    id: 'municipal-bags',
-    name: 'أكياس بلدية',
-    category: 'plastic',
-    unit: 'carton',
-    minStock: 1,
-    step: 1,
-    countCycle: 'weekly',
-  },
-  { id: 'tissues', name: 'مناديل', category: 'plastic', unit: 'carton', minStock: 2, step: 1, countCycle: 'weekly' },
-  { id: 'cleaners', name: 'منظفات', category: 'plastic', unit: 'carton', minStock: 1, step: 1, countCycle: 'weekly' },
-  { id: 'apron', name: 'مريول', category: 'plastic', unit: 'piece', minStock: 4, step: 1, countCycle: 'weekly' },
+  item('arabic-box', 'بوكس عربي', 'plastic', 'carton', 1, 'weekly'),
+  item('potato-cups', 'علب بطاطس', 'plastic', 'carton', 1, 'weekly'),
+  item('sauce-cups', 'علب صوصات', 'plastic', 'carton', 1, 'weekly'),
+  item('dough-bags', 'أكياس عجين', 'plastic', 'carton', 1, 'weekly'),
+  item('gloves', 'قفازات', 'plastic', 'carton', 1, 'weekly'),
+  item('masks', 'كمامات', 'plastic', 'carton', 1, 'weekly'),
+  item('hairnet', 'غطاء شعر', 'plastic', 'carton', 1, 'weekly'),
+  item('burger-foam', 'فلين برغر', 'plastic', 'carton', 1, 'weekly'),
+  item('butter-paper', 'ورق ساندويتش زبدة', 'plastic', 'carton', 1, 'weekly'),
+  item('foil', 'قصدير', 'plastic', 'carton', 1, 'weekly'),
+  item('wrap', 'تغليف', 'plastic', 'carton', 1, 'weekly'),
+  item('paper-bags', 'أكياس ورقية', 'plastic', 'carton', 1, 'weekly'),
+  item('plastic-bags', 'أكياس بلاستيك', 'plastic', 'carton', 1, 'weekly'),
+  item('drink-bags', 'أكياس بلاستيك للمشروب', 'plastic', 'carton', 1, 'weekly'),
+  item('invoice-paper', 'ورق فواتير', 'plastic', 'carton', 1, 'weekly'),
+  item('receipt-paper', 'ورق إيصال', 'plastic', 'carton', 1, 'weekly'),
+  item('staples', 'دبابيس', 'plastic', 'pack', 1, 'weekly'),
+  item('forks', 'شوك', 'plastic', 'carton', 1, 'weekly'),
+  item('municipal-bags', 'أكياس بلدية', 'plastic', 'carton', 1, 'weekly'),
+  item('tissues', 'مناديل', 'plastic', 'carton', 2, 'weekly'),
+  item('cleaners', 'منظفات', 'plastic', 'carton', 1, 'weekly'),
+  item('apron', 'مريول', 'plastic', 'piece', 4, 'weekly'),
 ]
 
-export const CATALOG_BY_ID = Object.fromEntries(CATALOG.map((item) => [item.id, item])) as Record<
-  string,
-  CatalogItem
->
+const DAILY_CATEGORIES: CategoryId[] = ['chicken', 'spices', 'veg', 'bakery']
+
+export function extraToCatalog(extra: ExtraItem): CatalogItem {
+  return {
+    id: extra.id,
+    name: extra.name,
+    category: extra.category,
+    unit: extra.unit,
+    minStock: 1,
+    step: stepForUnit(extra.unit),
+    countCycle: DAILY_CATEGORIES.includes(extra.category) ? 'daily' : 'weekly',
+    custom: true,
+  }
+}
+
+export function mergeCatalog(
+  extras: ExtraItem[],
+  unitOverrides: Record<string, Unit>,
+): CatalogItem[] {
+  return [...CATALOG, ...extras.map(extraToCatalog)].map((item) => {
+    const unit = unitOverrides[item.id] ?? item.unit
+    return { ...item, unit, step: stepForUnit(unit) }
+  })
+}
