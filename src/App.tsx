@@ -117,6 +117,13 @@ function App() {
             <p>أغسطس {YEAR} · من 1 السبت حتى 31</p>
           </div>
         </div>
+        <nav className="site-nav" aria-label="صفحات النظام">
+          <a className="current" href="./">
+            المحاسبة
+          </a>
+          <a href="./cash.html">الكاش</a>
+          <a href="./inventory.html">المخزون</a>
+        </nav>
         <div className={`save-pill ${savedFlash ? 'on' : ''}`}>
           {savedFlash ? 'تم الحفظ تلقائياً' : 'الحفظ تلقائي'}
         </div>

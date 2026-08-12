@@ -134,6 +134,29 @@ input {
   font-size: 0.92rem;
 }
 
+.site-nav {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.site-nav a {
+  text-decoration: none;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  background: var(--bg-elevated);
+  padding: 0.4rem 0.8rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+}
+
+.site-nav a.current,
+.site-nav a:hover {
+  background: linear-gradient(135deg, var(--accent-hot), var(--accent));
+  color: #1a130c;
+  border-color: transparent;
+}
+
 .save-pill {
   padding: 0.45rem 0.9rem;
   border-radius: 999px;

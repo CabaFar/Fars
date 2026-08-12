@@ -89,6 +89,13 @@ function CashApp() {
             </p>
           </div>
         </div>
+        <nav className="cash-links" aria-label="صفحات النظام">
+          <a href="./">المحاسبة</a>
+          <a className="current" href="./cash.html">
+            الكاش
+          </a>
+          <a href="./inventory.html">المخزون</a>
+        </nav>
         <div className={`cash-save ${savedFlash ? 'on' : ''}`}>
           {savedFlash ? 'تم الحفظ' : 'حفظ تلقائي'}
         </div>

@@ -134,6 +134,29 @@ input {
   font-size: 0.92rem;
 }
 
+.cash-links {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.cash-links a {
+  text-decoration: none;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  background: var(--bg-soft);
+  padding: 0.4rem 0.8rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+}
+
+.cash-links a.current,
+.cash-links a:hover {
+  background: linear-gradient(135deg, var(--accent-deep), var(--accent));
+  color: #0c1411;
+  border-color: transparent;
+}
+
 .cash-save {
   padding: 0.45rem 0.9rem;
   border-radius: 999px;

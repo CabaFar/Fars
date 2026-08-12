@@ -10,6 +10,7 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, 'index.html'),
         cash: resolve(__dirname, 'cash.html'),
+        inventory: resolve(__dirname, 'inventory.html'),
       },
     },
   },
