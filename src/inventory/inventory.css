@@ -427,6 +427,13 @@ input {
 .inv-name {
   display: flex;
   flex-direction: column;
+  gap: 0.35rem;
+}
+
+.inv-item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
 }
 
 .inv-name small {
@@ -492,10 +499,65 @@ input {
 }
 
 .tiny.danger {
-  margin-top: 0.25rem;
+  margin-top: 0;
   color: var(--red);
   background: var(--red-soft);
   border-color: var(--red-line);
+}
+
+.inv-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(20, 10, 10, 0.45);
+}
+
+.inv-modal {
+  width: min(100%, 26rem);
+  display: grid;
+  gap: 0.85rem;
+  padding: 1.15rem 1.2rem;
+  border-radius: 16px;
+  border: 1px solid var(--red-line);
+  background: #fff;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.18);
+}
+
+.inv-modal h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+}
+
+.inv-modal-field {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.inv-modal-field span {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.inv-modal-field input,
+.inv-modal-field select {
+  width: 100%;
+  padding: 0.7rem 0.85rem;
+  border-radius: 10px;
+  border: 1px solid var(--red-line);
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+}
+
+.inv-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
 }
 
 .inv-table input[type='number'] {

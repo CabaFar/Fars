@@ -176,12 +176,22 @@ export function mergeCatalog(
   extras: ExtraItem[],
   unitOverrides: Record<string, Unit>,
   removedIds: string[] = [],
+  metaOverrides: Record<string, { name?: string; category?: CategoryId }> = {},
 ): CatalogItem[] {
   const removed = new Set(removedIds)
   return [...CATALOG, ...extras.map(extraToCatalog)]
     .filter((item) => !removed.has(item.id))
     .map((item) => {
+      const meta = metaOverrides[item.id]
       const unit = unitOverrides[item.id] ?? item.unit
-      return { ...item, unit, step: stepForUnit(unit) }
+      const category = meta?.category ?? item.category
+      return {
+        ...item,
+        name: meta?.name?.trim() || item.name,
+        category,
+        unit,
+        step: stepForUnit(unit),
+        countCycle: DAILY_CATEGORIES.includes(category) ? 'daily' : item.countCycle,
+      }
     })
 }

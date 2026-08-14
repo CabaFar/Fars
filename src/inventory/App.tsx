@@ -14,14 +14,17 @@ import {
   importInventory,
   loadExtras,
   loadInventory,
+  loadMetaOverrides,
   loadPrices,
   loadRemovedIds,
   loadUnitOverrides,
   saveExtras,
   saveInventory,
+  saveMetaOverrides,
   savePrices,
   saveRemovedIds,
   saveUnitOverrides,
+  type ItemMetaOverrides,
 } from './storage'
 import {
   ARABIC_DAYS,
@@ -65,6 +68,8 @@ function InventoryApp() {
   const [extras, setExtras] = useState<ExtraItem[]>(() => loadExtras())
   const [units, setUnits] = useState<UnitOverrides>(() => loadUnitOverrides())
   const [removedIds, setRemovedIds] = useState<string[]>(() => loadRemovedIds())
+  const [meta, setMeta] = useState<ItemMetaOverrides>(() => loadMetaOverrides())
+  const [editingItem, setEditingItem] = useState<CatalogItem | null>(null)
   const [branch, setBranch] = useState<BranchId>('wasita')
   const [year, setYear] = useState(now.year)
   const [month, setMonth] = useState(now.month)
@@ -80,8 +85,8 @@ function InventoryApp() {
   const key = dateKeyFromParts(year, month, day)
   const weekday = weekdayLabel(year, month, day)
   const allItems = useMemo(
-    () => mergeCatalog(extras, units, removedIds),
-    [extras, units, removedIds],
+    () => mergeCatalog(extras, units, removedIds, meta),
+    [extras, units, removedIds, meta],
   )
 
   useEffect(() => {
@@ -90,10 +95,11 @@ function InventoryApp() {
     saveExtras(extras)
     saveUnitOverrides(units)
     saveRemovedIds(removedIds)
+    saveMetaOverrides(meta)
     setSavedFlash(true)
     const t = window.setTimeout(() => setSavedFlash(false), 1200)
     return () => window.clearTimeout(t)
-  }, [data, prices, extras, units, removedIds])
+  }, [data, prices, extras, units, removedIds, meta])
 
   useEffect(() => {
     const max = daysInMonth(year, month)
@@ -164,6 +170,31 @@ function InventoryApp() {
       delete next[item.id]
       return next
     })
+    setMeta((prev) => {
+      if (!(item.id in prev)) return prev
+      const next = { ...prev }
+      delete next[item.id]
+      return next
+    })
+  }
+
+  const saveEditedItem = (item: CatalogItem, name: string, unit: Unit, categoryId: CategoryId) => {
+    const trimmed = name.trim()
+    if (!trimmed) return
+    if (item.custom) {
+      setExtras((prev) =>
+        prev.map((row) =>
+          row.id === item.id ? { ...row, name: trimmed, unit, category: categoryId } : row,
+        ),
+      )
+    } else {
+      setMeta((prev) => ({
+        ...prev,
+        [item.id]: { name: trimmed, category: categoryId },
+      }))
+    }
+    setItemUnit(item.id, unit)
+    setEditingItem(null)
   }
 
   const visibleItems = useMemo(() => {
@@ -277,6 +308,7 @@ function InventoryApp() {
       setExtras(imported.extras)
       setUnits(imported.units)
       setRemovedIds(imported.removedIds ?? [])
+      setMeta(imported.meta ?? {})
     } catch {
       window.alert('تعذر قراءة ملف النسخة الاحتياطية')
     }
@@ -537,13 +569,22 @@ function InventoryApp() {
                           <td>
                             <div className="inv-name">
                               <strong>{item.name}</strong>
-                              <button
-                                type="button"
-                                className="tiny danger"
-                                onClick={() => removeItem(item)}
-                              >
-                                حذف
-                              </button>
+                              <div className="inv-item-actions">
+                                <button
+                                  type="button"
+                                  className="tiny"
+                                  onClick={() => setEditingItem(item)}
+                                >
+                                  تعديل
+                                </button>
+                                <button
+                                  type="button"
+                                  className="tiny danger"
+                                  onClick={() => removeItem(item)}
+                                >
+                                  حذف
+                                </button>
+                              </div>
                             </div>
                           </td>
                           <td>
@@ -614,13 +655,22 @@ function InventoryApp() {
                         <td>
                           <div className="inv-name">
                             <strong>{item.name}</strong>
-                            <button
-                              type="button"
-                              className="tiny danger"
-                              onClick={() => removeItem(item)}
-                            >
-                              حذف
-                            </button>
+                            <div className="inv-item-actions">
+                              <button
+                                type="button"
+                                className="tiny"
+                                onClick={() => setEditingItem(item)}
+                              >
+                                تعديل
+                              </button>
+                              <button
+                                type="button"
+                                className="tiny danger"
+                                onClick={() => removeItem(item)}
+                              >
+                                حذف
+                              </button>
+                            </div>
                           </div>
                         </td>
                         <td>
@@ -786,13 +836,16 @@ function InventoryApp() {
               <li>
                 <b>حذف صنف:</b> من زر «حذف» بجانب اسم الصنف في المشتريات أو الأسعار.
               </li>
+              <li>
+                <b>تعديل صنف:</b> من زر «تعديل» لتغيير الاسم أو الوحدة أو القسم.
+              </li>
             </ol>
           </div>
           <div className="inv-backup no-print">
             <button
               type="button"
               onClick={() =>
-                exportInventory({ version: 4, data, prices, extras, units, removedIds })
+                exportInventory({ version: 5, data, prices, extras, units, removedIds, meta })
               }
             >
               تنزيل نسخة احتياطية
@@ -846,7 +899,81 @@ function InventoryApp() {
         </table>
       </section>
 
+      {editingItem && (
+        <EditItemDialog
+          item={editingItem}
+          onCancel={() => setEditingItem(null)}
+          onSave={saveEditedItem}
+        />
+      )}
+
       <footer className="inv-footer no-print">البيانات تُحفظ على هذا الجهاز</footer>
+    </div>
+  )
+}
+
+function EditItemDialog({
+  item,
+  onCancel,
+  onSave,
+}: {
+  item: CatalogItem
+  onCancel: () => void
+  onSave: (item: CatalogItem, name: string, unit: Unit, categoryId: CategoryId) => void
+}) {
+  const [name, setName] = useState(item.name)
+  const [unit, setUnit] = useState<Unit>(item.unit)
+  const [categoryId, setCategoryId] = useState<CategoryId>(item.category)
+
+  return (
+    <div className="inv-modal-backdrop" role="presentation" onClick={onCancel}>
+      <form
+        className="inv-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="edit-item-title"
+        onClick={(e) => e.stopPropagation()}
+        onSubmit={(e) => {
+          e.preventDefault()
+          onSave(item, name, unit, categoryId)
+        }}
+      >
+        <h3 id="edit-item-title">تعديل الصنف</h3>
+        <label className="inv-modal-field">
+          <span>اسم الصنف</span>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            autoFocus
+            required
+            aria-label="اسم الصنف"
+          />
+        </label>
+        <label className="inv-modal-field">
+          <span>القسم</span>
+          <select
+            value={categoryId}
+            onChange={(e) => setCategoryId(e.target.value as CategoryId)}
+            aria-label="قسم الصنف"
+          >
+            {CATEGORIES.map((cat) => (
+              <option key={cat.id} value={cat.id}>
+                {cat.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="inv-modal-field">
+          <span>الوحدة</span>
+          <UnitSelect value={unit} onChange={setUnit} />
+        </label>
+        <div className="inv-modal-actions">
+          <button type="button" className="ghost" onClick={onCancel}>
+            إلغاء
+          </button>
+          <button type="submit">حفظ التعديل</button>
+        </div>
+      </form>
     </div>
   )
 }

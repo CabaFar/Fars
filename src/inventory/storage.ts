@@ -1,4 +1,4 @@
-import type { ExtraItem } from './catalog'
+import type { CategoryId, ExtraItem } from './catalog'
 import type { InventoryData, PriceList, UnitOverrides } from './types'
 import { emptyInventoryData, emptyPriceList } from './types'
 
@@ -7,6 +7,10 @@ const PRICE_KEY = 'shawarma-inventory-prices-v1'
 const EXTRA_KEY = 'shawarma-inventory-extras-v1'
 const UNITS_KEY = 'shawarma-inventory-units-v1'
 const REMOVED_KEY = 'shawarma-inventory-removed-v1'
+const META_KEY = 'shawarma-inventory-meta-v1'
+
+export type ItemMetaOverride = { name?: string; category?: CategoryId }
+export type ItemMetaOverrides = Record<string, ItemMetaOverride>
 
 export function loadInventory(): InventoryData {
   try {
@@ -89,6 +93,21 @@ export function saveRemovedIds(ids: string[]): void {
   localStorage.setItem(REMOVED_KEY, JSON.stringify(ids))
 }
 
+export function loadMetaOverrides(): ItemMetaOverrides {
+  try {
+    const raw = localStorage.getItem(META_KEY)
+    if (!raw) return {}
+    const parsed = JSON.parse(raw) as ItemMetaOverrides
+    return parsed && typeof parsed === 'object' ? parsed : {}
+  } catch {
+    return {}
+  }
+}
+
+export function saveMetaOverrides(meta: ItemMetaOverrides): void {
+  localStorage.setItem(META_KEY, JSON.stringify(meta))
+}
+
 export type BackupPayload = {
   version: number
   data: InventoryData
@@ -96,6 +115,7 @@ export type BackupPayload = {
   extras: ExtraItem[]
   units: UnitOverrides
   removedIds?: string[]
+  meta?: ItemMetaOverrides
 }
 
 export function exportInventory(payload: BackupPayload): void {
@@ -119,7 +139,7 @@ export function importInventory(file: File): Promise<BackupPayload> {
         }
         if (parsed.data) {
           resolve({
-            version: 4,
+            version: 5,
             data: {
               wasita: parsed.data.wasita ?? {},
               beirut: parsed.data.beirut ?? {},
@@ -131,11 +151,12 @@ export function importInventory(file: File): Promise<BackupPayload> {
             extras: parsed.extras ?? [],
             units: parsed.units ?? {},
             removedIds: parsed.removedIds ?? [],
+            meta: parsed.meta ?? {},
           })
           return
         }
         resolve({
-          version: 4,
+          version: 5,
           data: {
             wasita: parsed.wasita ?? {},
             beirut: parsed.beirut ?? {},
@@ -144,6 +165,7 @@ export function importInventory(file: File): Promise<BackupPayload> {
           extras: [],
           units: {},
           removedIds: [],
+          meta: {},
         })
       } catch (err) {
         reject(err)
