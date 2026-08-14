@@ -430,6 +430,27 @@ input {
   background: #f7fff9;
 }
 
+.inv-stock-table .inv-stock-cat td {
+  background: var(--red-soft);
+  color: var(--red-dark);
+  font-family: var(--font-display);
+  font-weight: 700;
+  border-bottom: 1px solid var(--red-line);
+}
+
+.inv-stock-table .pos-qty {
+  color: #1a7a3a;
+  font-weight: 600;
+}
+
+.inv-stock-table .row-empty {
+  opacity: 0.55;
+}
+
+.inv-stock-table .row-partial {
+  background: #fff8e8;
+}
+
 .inv-name {
   display: flex;
   flex-direction: column;

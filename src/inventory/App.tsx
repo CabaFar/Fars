@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import {
   CATEGORIES,
   UNITS,
@@ -49,7 +49,7 @@ import {
   type UnitOverrides,
 } from './types'
 
-type Mode = 'morning' | 'evening' | 'prices' | 'report'
+type Mode = 'morning' | 'evening' | 'prices' | 'stock' | 'report'
 type CycleFilter = 'daily' | 'all'
 
 function todayParts() {
@@ -262,23 +262,44 @@ function InventoryApp() {
   const stockQty = (rec: ItemDay) =>
     rec.counted ? rec.closingQty : rec.openingQty + rec.purchaseQty
 
-  const stockValueFor = (branchId: BranchId) =>
-    allItems.reduce((sum, item) => {
-      const rec = resolveItemDay(data, branchId, key, item.id)
-      const qty = stockQty(rec)
-      if (qty <= 0) return sum
-      const price = listedPrice(item.id, rec, branchId)
-      return sum + qty * price
-    }, 0)
+  const stockRows = useMemo(
+    () =>
+      allItems.map((item) => {
+        const wasitaRec = resolveItemDay(data, 'wasita', key, item.id)
+        const beirutRec = resolveItemDay(data, 'beirut', key, item.id)
+        const wasitaQty = stockQty(wasitaRec)
+        const beirutQty = stockQty(beirutRec)
+        return {
+          item,
+          wasitaQty,
+          beirutQty,
+          totalQty: wasitaQty + beirutQty,
+        }
+      }),
+    [allItems, data, key],
+  )
+
+  const visibleStockRows = useMemo(() => {
+    const q = query.trim()
+    return stockRows.filter(({ item }) => {
+      if (category !== 'all' && item.category !== category) return false
+      if (q && !item.name.includes(q)) return false
+      if (mode === 'stock' && cycle === 'daily' && item.countCycle !== 'daily') return false
+      return true
+    })
+  }, [stockRows, category, query, mode, cycle])
+
+  const wasitaAvailableCount = stockRows.filter((row) => row.wasitaQty > 0).length
+  const beirutAvailableCount = stockRows.filter((row) => row.beirutQty > 0).length
+  const bothAvailableCount = stockRows.filter((row) => row.totalQty > 0).length
 
   const wasitaDay = dayPurchaseFor('wasita')
   const beirutDay = dayPurchaseFor('beirut')
   const branchesDayTotal = wasitaDay + beirutDay
   const branchesMonthTotal = monthPurchaseFor('wasita') + monthPurchaseFor('beirut')
-  const wasitaStock = stockValueFor('wasita')
-  const beirutStock = stockValueFor('beirut')
-  const branchesStockTotal = wasitaStock + beirutStock
-  const currentBranchStock = branch === 'wasita' ? wasitaStock : beirutStock
+  const currentBranchAvailable = stockRows.filter((row) =>
+    branch === 'wasita' ? row.wasitaQty > 0 : row.beirutQty > 0,
+  ).length
 
   const shiftMonth = (delta: number) => {
     const next = new Date(year, month + delta, 1)
@@ -359,20 +380,20 @@ function InventoryApp() {
         </div>
       </header>
 
-      <section className="inv-grand no-print" aria-label="إجمالي الفروع">
-        <h2>إجمالي الفروع</h2>
+      <section className="inv-grand no-print" aria-label="كميات مخزون الفروع">
+        <h2>كميات المخزون المتوفرة بالفروع</h2>
         <div className="inv-grand-grid">
           <article className="accent">
-            <span>إجمالي مخزون الفروع</span>
-            <strong>{formatMoney(branchesStockTotal)} ر.س</strong>
+            <span>أصناف متوفرة (الفرعين)</span>
+            <strong>{bothAvailableCount}</strong>
           </article>
           <article>
-            <span>مخزون الوسيطاء</span>
-            <strong>{formatMoney(wasitaStock)} ر.س</strong>
+            <span>أصناف متوفرة — الوسيطاء</span>
+            <strong>{wasitaAvailableCount}</strong>
           </article>
           <article>
-            <span>مخزون بيروت</span>
-            <strong>{formatMoney(beirutStock)} ر.س</strong>
+            <span>أصناف متوفرة — بيروت</span>
+            <strong>{beirutAvailableCount}</strong>
           </article>
           <article>
             <span>مشتريات اليوم (الفرعين)</span>
@@ -395,8 +416,8 @@ function InventoryApp() {
 
       <section className="inv-kpis no-print" aria-label="ملخص اليوم">
         <article className="accent">
-          <span>قيمة مخزون الفرع</span>
-          <strong>{formatMoney(currentBranchStock)} ر.س</strong>
+          <span>أصناف متوفرة بالفرع</span>
+          <strong>{currentBranchAvailable}</strong>
         </article>
         <article>
           <span>مشتريات اليوم</span>
@@ -452,6 +473,16 @@ function InventoryApp() {
             onClick={() => setMode('prices')}
           >
             الأسعار
+          </button>
+          <button
+            type="button"
+            className={mode === 'stock' ? 'active' : ''}
+            onClick={() => {
+              setMode('stock')
+              setCycle('all')
+            }}
+          >
+            كميات الفروع
           </button>
           <button
             type="button"
@@ -563,6 +594,24 @@ function InventoryApp() {
               </button>
               <button type="button" className="ghost" onClick={() => window.print()}>
                 طباعة ورقة الجرد
+              </button>
+            </div>
+          )}
+          {mode === 'stock' && (
+            <div className="inv-cycle">
+              <button
+                type="button"
+                className={cycle === 'daily' ? 'active' : ''}
+                onClick={() => setCycle('daily')}
+              >
+                أصناف يومية فقط
+              </button>
+              <button
+                type="button"
+                className={cycle === 'all' ? 'active' : ''}
+                onClick={() => setCycle('all')}
+              >
+                كل الأصناف
               </button>
             </div>
           )}
@@ -727,6 +776,66 @@ function InventoryApp() {
         </section>
       )}
 
+      {mode === 'stock' && (
+        <section className="inv-sheet">
+          <div className="inv-sheet-head">
+            <h3>الكميات المتوفرة بالفروع — {weekday} {day}</h3>
+            <p>
+              الكمية = الجرد إن وُجد، وإلا الموجود الآن + الجديد. يُحدَّث تلقائياً لكل فرع.
+            </p>
+          </div>
+          <div className="inv-table-wrap">
+            <table className="inv-table inv-stock-table">
+              <thead>
+                <tr>
+                  <th>الصنف</th>
+                  <th>الوحدة</th>
+                  <th>الوسيطاء</th>
+                  <th>بيروت</th>
+                  <th>الإجمالي</th>
+                </tr>
+              </thead>
+              <tbody>
+                {CATEGORIES.map((cat) => {
+                  const rowsForCat = visibleStockRows.filter(({ item }) => item.category === cat.id)
+                  if (rowsForCat.length === 0) return null
+                  return (
+                    <Fragment key={cat.id}>
+                      <tr className="inv-stock-cat">
+                        <td colSpan={5}>{cat.name}</td>
+                      </tr>
+                      {rowsForCat.map(({ item, wasitaQty, beirutQty, totalQty }) => (
+                        <tr
+                          key={item.id}
+                          className={totalQty <= 0 ? 'row-empty' : wasitaQty <= 0 || beirutQty <= 0 ? 'row-partial' : ''}
+                        >
+                          <td>
+                            <strong>{item.name}</strong>
+                          </td>
+                          <td>{UNIT_LABEL[item.unit]}</td>
+                          <td className={wasitaQty <= 0 ? 'neg' : 'pos-qty'}>
+                            {formatQty(wasitaQty, item.unit)}
+                          </td>
+                          <td className={beirutQty <= 0 ? 'neg' : 'pos-qty'}>
+                            {formatQty(beirutQty, item.unit)}
+                          </td>
+                          <td>
+                            <strong>{formatQty(totalQty, item.unit)}</strong>
+                          </td>
+                        </tr>
+                      ))}
+                    </Fragment>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+          {visibleStockRows.length === 0 && (
+            <p className="muted">لا توجد أصناف مطابقة للبحث أو التصفية.</p>
+          )}
+        </section>
+      )}
+
       {mode === 'evening' && (
         <section className="inv-sheet">
           <div className="inv-sheet-head">
@@ -803,9 +912,8 @@ function InventoryApp() {
               تقرير {weekday} {day}
             </h3>
             <p>
-              {BRANCHES.find((b) => b.id === branch)?.name} · مخزون{' '}
-              {formatMoney(currentBranchStock)} ر.س · مشتريات {formatMoney(purchaseCostTotal)} ر.س
-              · إجمالي مخزون الفروع {formatMoney(branchesStockTotal)} ر.س
+              {BRANCHES.find((b) => b.id === branch)?.name} · أصناف متوفرة {currentBranchAvailable} ·
+              مشتريات {formatMoney(purchaseCostTotal)} ر.س · متوفر بالفرعين {bothAvailableCount} صنف
             </p>
           </div>
           <div className="inv-report-grid">
@@ -875,8 +983,8 @@ function InventoryApp() {
                 <b>تعديل صنف:</b> من زر «تعديل» لتغيير الاسم أو الوحدة أو القسم.
               </li>
               <li>
-                <b>إجمالي مخزون الفروع:</b> يُحسب تلقائياً = كمية المخزون × سعر الوحدة لكل صنف في
-                الفرعين (الجرد إن وُجد، وإلا الموجود + الجديد).
+                <b>كميات الفروع:</b> جدول تلقائي يعرض الكمية المتوفرة في الوسيطاء وبيروت والإجمالي لكل
+                صنف (الجرد إن وُجد، وإلا الموجود + الجديد).
               </li>
             </ol>
           </div>
