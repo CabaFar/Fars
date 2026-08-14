@@ -8,6 +8,7 @@ export type CategoryId =
   | 'frozen'
   | 'sauces'
   | 'bakery'
+  | 'drinks'
   | 'plastic'
   | 'cleaners'
 
@@ -39,6 +40,7 @@ export const CATEGORIES: { id: CategoryId; name: string }[] = [
   { id: 'frozen', name: 'المجمدات' },
   { id: 'sauces', name: 'الصوصات' },
   { id: 'bakery', name: 'المخبوزات والطحين' },
+  { id: 'drinks', name: 'مشروبات' },
   { id: 'plastic', name: 'بلاستيك وتغليف' },
   { id: 'cleaners', name: 'المنظفات' },
 ]
@@ -126,6 +128,15 @@ export const CATALOG: CatalogItem[] = [
   item('flour', 'طحين', 'bakery', 'pack', 1, 'weekly'),
   item('fatoush-bread', 'خبز فتوش', 'bakery', 'pack', 2, 'daily'),
 
+  item('pepsi', 'بيبسي', 'drinks', 'carton', 2, 'daily'),
+  item('pepsi-diet', 'بيبسي دايت', 'drinks', 'carton', 1, 'daily'),
+  item('seven-up', 'سفن', 'drinks', 'carton', 2, 'daily'),
+  item('seven-up-diet', 'سفن دايت', 'drinks', 'carton', 1, 'daily'),
+  item('citrus', 'حمضيات', 'drinks', 'carton', 1, 'daily'),
+  item('rabie', 'ربيع', 'drinks', 'carton', 1, 'daily'),
+  item('dew', 'ديو', 'drinks', 'carton', 1, 'daily'),
+  item('water', 'ماء', 'drinks', 'carton', 2, 'daily'),
+
   item('arabic-box', 'بوكس عربي', 'plastic', 'carton', 1, 'weekly'),
   item('potato-cups', 'علب بطاطس', 'plastic', 'carton', 1, 'weekly'),
   item('sauce-cups', 'علب صوصات', 'plastic', 'carton', 1, 'weekly'),
@@ -157,7 +168,7 @@ export const CATALOG: CatalogItem[] = [
   item('dettol', 'ديتول', 'cleaners', 'pack', 1, 'weekly'),
 ]
 
-const DAILY_CATEGORIES: CategoryId[] = ['chicken', 'spices', 'veg', 'bakery']
+const DAILY_CATEGORIES: CategoryId[] = ['chicken', 'spices', 'veg', 'bakery', 'drinks']
 
 export function extraToCatalog(extra: ExtraItem): CatalogItem {
   return {
