@@ -258,10 +258,27 @@ function InventoryApp() {
     return total
   }
 
+  /** كمية المخزون الحالية: الجرد إن وُجد، وإلا الموجود + الجديد */
+  const stockQty = (rec: ItemDay) =>
+    rec.counted ? rec.closingQty : rec.openingQty + rec.purchaseQty
+
+  const stockValueFor = (branchId: BranchId) =>
+    allItems.reduce((sum, item) => {
+      const rec = resolveItemDay(data, branchId, key, item.id)
+      const qty = stockQty(rec)
+      if (qty <= 0) return sum
+      const price = listedPrice(item.id, rec, branchId)
+      return sum + qty * price
+    }, 0)
+
   const wasitaDay = dayPurchaseFor('wasita')
   const beirutDay = dayPurchaseFor('beirut')
   const branchesDayTotal = wasitaDay + beirutDay
   const branchesMonthTotal = monthPurchaseFor('wasita') + monthPurchaseFor('beirut')
+  const wasitaStock = stockValueFor('wasita')
+  const beirutStock = stockValueFor('beirut')
+  const branchesStockTotal = wasitaStock + beirutStock
+  const currentBranchStock = branch === 'wasita' ? wasitaStock : beirutStock
 
   const shiftMonth = (delta: number) => {
     const next = new Date(year, month + delta, 1)
@@ -345,16 +362,28 @@ function InventoryApp() {
       <section className="inv-grand no-print" aria-label="إجمالي الفروع">
         <h2>إجمالي الفروع</h2>
         <div className="inv-grand-grid">
+          <article className="accent">
+            <span>إجمالي مخزون الفروع</span>
+            <strong>{formatMoney(branchesStockTotal)} ر.س</strong>
+          </article>
+          <article>
+            <span>مخزون الوسيطاء</span>
+            <strong>{formatMoney(wasitaStock)} ر.س</strong>
+          </article>
+          <article>
+            <span>مخزون بيروت</span>
+            <strong>{formatMoney(beirutStock)} ر.س</strong>
+          </article>
           <article>
             <span>مشتريات اليوم (الفرعين)</span>
             <strong>{formatMoney(branchesDayTotal)} ر.س</strong>
           </article>
           <article>
-            <span>الوسيطاء اليوم</span>
+            <span>الوسيطاء — مشتريات اليوم</span>
             <strong>{formatMoney(wasitaDay)} ر.س</strong>
           </article>
           <article>
-            <span>بيروت اليوم</span>
+            <span>بيروت — مشتريات اليوم</span>
             <strong>{formatMoney(beirutDay)} ر.س</strong>
           </article>
           <article>
@@ -365,6 +394,10 @@ function InventoryApp() {
       </section>
 
       <section className="inv-kpis no-print" aria-label="ملخص اليوم">
+        <article className="accent">
+          <span>قيمة مخزون الفرع</span>
+          <strong>{formatMoney(currentBranchStock)} ر.س</strong>
+        </article>
         <article>
           <span>مشتريات اليوم</span>
           <strong>{formatMoney(purchaseCostTotal)} ر.س</strong>
@@ -770,7 +803,9 @@ function InventoryApp() {
               تقرير {weekday} {day}
             </h3>
             <p>
-              {BRANCHES.find((b) => b.id === branch)?.name} · مشتريات {formatMoney(purchaseCostTotal)} ر.س
+              {BRANCHES.find((b) => b.id === branch)?.name} · مخزون{' '}
+              {formatMoney(currentBranchStock)} ر.س · مشتريات {formatMoney(purchaseCostTotal)} ر.س
+              · إجمالي مخزون الفروع {formatMoney(branchesStockTotal)} ر.س
             </p>
           </div>
           <div className="inv-report-grid">
@@ -838,6 +873,10 @@ function InventoryApp() {
               </li>
               <li>
                 <b>تعديل صنف:</b> من زر «تعديل» لتغيير الاسم أو الوحدة أو القسم.
+              </li>
+              <li>
+                <b>إجمالي مخزون الفروع:</b> يُحسب تلقائياً = كمية المخزون × سعر الوحدة لكل صنف في
+                الفرعين (الجرد إن وُجد، وإلا الموجود + الجديد).
               </li>
             </ol>
           </div>
