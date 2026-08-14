@@ -15,10 +15,12 @@ import {
   loadExtras,
   loadInventory,
   loadPrices,
+  loadRemovedIds,
   loadUnitOverrides,
   saveExtras,
   saveInventory,
   savePrices,
+  saveRemovedIds,
   saveUnitOverrides,
 } from './storage'
 import {
@@ -62,6 +64,7 @@ function InventoryApp() {
   const [prices, setPrices] = useState<PriceList>(() => loadPrices())
   const [extras, setExtras] = useState<ExtraItem[]>(() => loadExtras())
   const [units, setUnits] = useState<UnitOverrides>(() => loadUnitOverrides())
+  const [removedIds, setRemovedIds] = useState<string[]>(() => loadRemovedIds())
   const [branch, setBranch] = useState<BranchId>('wasita')
   const [year, setYear] = useState(now.year)
   const [month, setMonth] = useState(now.month)
@@ -76,17 +79,21 @@ function InventoryApp() {
   const totalDays = daysInMonth(year, month)
   const key = dateKeyFromParts(year, month, day)
   const weekday = weekdayLabel(year, month, day)
-  const allItems = useMemo(() => mergeCatalog(extras, units), [extras, units])
+  const allItems = useMemo(
+    () => mergeCatalog(extras, units, removedIds),
+    [extras, units, removedIds],
+  )
 
   useEffect(() => {
     saveInventory(data)
     savePrices(prices)
     saveExtras(extras)
     saveUnitOverrides(units)
+    saveRemovedIds(removedIds)
     setSavedFlash(true)
     const t = window.setTimeout(() => setSavedFlash(false), 1200)
     return () => window.clearTimeout(t)
-  }, [data, prices, extras, units])
+  }, [data, prices, extras, units, removedIds])
 
   useEffect(() => {
     const max = daysInMonth(year, month)
@@ -143,8 +150,20 @@ function InventoryApp() {
     ])
   }
 
-  const removeItem = (itemId: string) => {
-    setExtras((prev) => prev.filter((item) => item.id !== itemId))
+  const removeItem = (item: CatalogItem) => {
+    const ok = window.confirm(`حذف الصنف «${item.name}» من القائمة؟`)
+    if (!ok) return
+    if (item.custom) {
+      setExtras((prev) => prev.filter((row) => row.id !== item.id))
+    } else {
+      setRemovedIds((prev) => (prev.includes(item.id) ? prev : [...prev, item.id]))
+    }
+    setUnits((prev) => {
+      if (!(item.id in prev)) return prev
+      const next = { ...prev }
+      delete next[item.id]
+      return next
+    })
   }
 
   const visibleItems = useMemo(() => {
@@ -257,6 +276,7 @@ function InventoryApp() {
       setPrices(imported.prices)
       setExtras(imported.extras)
       setUnits(imported.units)
+      setRemovedIds(imported.removedIds ?? [])
     } catch {
       window.alert('تعذر قراءة ملف النسخة الاحتياطية')
     }
@@ -517,15 +537,13 @@ function InventoryApp() {
                           <td>
                             <div className="inv-name">
                               <strong>{item.name}</strong>
-                              {item.custom && (
-                                <button
-                                  type="button"
-                                  className="tiny danger"
-                                  onClick={() => removeItem(item.id)}
-                                >
-                                  حذف
-                                </button>
-                              )}
+                              <button
+                                type="button"
+                                className="tiny danger"
+                                onClick={() => removeItem(item)}
+                              >
+                                حذف
+                              </button>
                             </div>
                           </td>
                           <td>
@@ -576,7 +594,7 @@ function InventoryApp() {
         <section className="inv-sheet">
           <div className="inv-sheet-head">
             <h3>أسعار الأصناف — {BRANCHES.find((b) => b.id === branch)?.name}</h3>
-            <p>سعر الوحدة بالريال حسب الوحدة المختارة (حبة · كيلو · كرتون · شد)</p>
+            <p>سعر الوحدة بالريال حسب الوحدة المختارة (حبة · كيلو · كرتون · شد · تنك)</p>
           </div>
           {grouped.map(({ cat, items }) => (
             <div key={cat.id} className="inv-cat">
@@ -594,7 +612,16 @@ function InventoryApp() {
                     {items.map((item) => (
                       <tr key={item.id}>
                         <td>
-                          <strong>{item.name}</strong>
+                          <div className="inv-name">
+                            <strong>{item.name}</strong>
+                            <button
+                              type="button"
+                              className="tiny danger"
+                              onClick={() => removeItem(item)}
+                            >
+                              حذف
+                            </button>
+                          </div>
                         </td>
                         <td>
                           <UnitSelect value={item.unit} onChange={(unit) => setItemUnit(item.id, unit)} />
@@ -754,7 +781,10 @@ function InventoryApp() {
                 <b>المورد:</b> اسم المورد لهذا الصنف.
               </li>
               <li>
-                <b>الوحدة:</b> حبة أو كيلو أو كرتون أو شد، ويمكن تغييرها لأي صنف.
+                <b>الوحدة:</b> حبة أو كيلو أو كرتون أو شد أو تنك، ويمكن تغييرها لأي صنف. الغاز وحدته تنك.
+              </li>
+              <li>
+                <b>حذف صنف:</b> من زر «حذف» بجانب اسم الصنف في المشتريات أو الأسعار.
               </li>
             </ol>
           </div>
@@ -762,7 +792,7 @@ function InventoryApp() {
             <button
               type="button"
               onClick={() =>
-                exportInventory({ version: 3, data, prices, extras, units })
+                exportInventory({ version: 4, data, prices, extras, units, removedIds })
               }
             >
               تنزيل نسخة احتياطية

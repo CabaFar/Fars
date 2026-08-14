@@ -106,6 +106,7 @@ export function formatQty(value: number, unit: Unit): string {
     piece: 'حبة',
     carton: 'كرتون',
     pack: 'شد',
+    tank: 'تنك',
   }
   return `${formatted} ${labels[unit]}`
 }

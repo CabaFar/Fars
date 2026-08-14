@@ -1,4 +1,4 @@
-export type Unit = 'piece' | 'kg' | 'carton' | 'pack'
+export type Unit = 'piece' | 'kg' | 'carton' | 'pack' | 'tank'
 
 export type CategoryId =
   | 'chicken'
@@ -48,6 +48,7 @@ export const UNITS: { id: Unit; name: string }[] = [
   { id: 'kg', name: 'كيلو' },
   { id: 'carton', name: 'كرتون' },
   { id: 'pack', name: 'شد' },
+  { id: 'tank', name: 'تنك' },
 ]
 
 export const UNIT_LABEL: Record<Unit, string> = {
@@ -55,6 +56,7 @@ export const UNIT_LABEL: Record<Unit, string> = {
   kg: 'كيلو',
   carton: 'كرتون',
   pack: 'شد',
+  tank: 'تنك',
 }
 
 export function stepForUnit(unit: Unit): number {
@@ -97,6 +99,7 @@ export const CATALOG: CatalogItem[] = [
   item('sugar', 'سكر', 'dry', 'carton', 1, 'weekly'),
   item('zahreti-oil', 'زيت زهرتي', 'dry', 'carton', 1, 'weekly'),
   item('dalal-oil', 'زيت دلال', 'dry', 'carton', 1, 'weekly'),
+  item('gas', 'الغاز', 'dry', 'tank', 1, 'weekly'),
   item('eggs', 'بيض', 'dry', 'carton', 1, 'weekly'),
   item('food-color', 'ملون طعام', 'dry', 'carton', 1, 'weekly'),
   item('lemon-salt', 'ملح ليمون', 'dry', 'pack', 1, 'weekly'),
@@ -172,9 +175,13 @@ export function extraToCatalog(extra: ExtraItem): CatalogItem {
 export function mergeCatalog(
   extras: ExtraItem[],
   unitOverrides: Record<string, Unit>,
+  removedIds: string[] = [],
 ): CatalogItem[] {
-  return [...CATALOG, ...extras.map(extraToCatalog)].map((item) => {
-    const unit = unitOverrides[item.id] ?? item.unit
-    return { ...item, unit, step: stepForUnit(unit) }
-  })
+  const removed = new Set(removedIds)
+  return [...CATALOG, ...extras.map(extraToCatalog)]
+    .filter((item) => !removed.has(item.id))
+    .map((item) => {
+      const unit = unitOverrides[item.id] ?? item.unit
+      return { ...item, unit, step: stepForUnit(unit) }
+    })
 }

@@ -6,6 +6,7 @@ const STORAGE_KEY = 'shawarma-inventory-v1'
 const PRICE_KEY = 'shawarma-inventory-prices-v1'
 const EXTRA_KEY = 'shawarma-inventory-extras-v1'
 const UNITS_KEY = 'shawarma-inventory-units-v1'
+const REMOVED_KEY = 'shawarma-inventory-removed-v1'
 
 export function loadInventory(): InventoryData {
   try {
@@ -73,12 +74,28 @@ export function saveUnitOverrides(units: UnitOverrides): void {
   localStorage.setItem(UNITS_KEY, JSON.stringify(units))
 }
 
+export function loadRemovedIds(): string[] {
+  try {
+    const raw = localStorage.getItem(REMOVED_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as string[]
+    return Array.isArray(parsed) ? parsed.filter((id) => typeof id === 'string') : []
+  } catch {
+    return []
+  }
+}
+
+export function saveRemovedIds(ids: string[]): void {
+  localStorage.setItem(REMOVED_KEY, JSON.stringify(ids))
+}
+
 export type BackupPayload = {
   version: number
   data: InventoryData
   prices: PriceList
   extras: ExtraItem[]
   units: UnitOverrides
+  removedIds?: string[]
 }
 
 export function exportInventory(payload: BackupPayload): void {
@@ -102,7 +119,7 @@ export function importInventory(file: File): Promise<BackupPayload> {
         }
         if (parsed.data) {
           resolve({
-            version: 3,
+            version: 4,
             data: {
               wasita: parsed.data.wasita ?? {},
               beirut: parsed.data.beirut ?? {},
@@ -113,11 +130,12 @@ export function importInventory(file: File): Promise<BackupPayload> {
             },
             extras: parsed.extras ?? [],
             units: parsed.units ?? {},
+            removedIds: parsed.removedIds ?? [],
           })
           return
         }
         resolve({
-          version: 3,
+          version: 4,
           data: {
             wasita: parsed.wasita ?? {},
             beirut: parsed.beirut ?? {},
@@ -125,6 +143,7 @@ export function importInventory(file: File): Promise<BackupPayload> {
           prices: emptyPriceList(),
           extras: [],
           units: {},
+          removedIds: [],
         })
       } catch (err) {
         reject(err)
