@@ -1,3 +1,4 @@
+import { notifyDataChanged } from '../auth/vault'
 import type { CashAppData } from './types'
 import { emptyCashAppData, normalizeCashDay } from './types'
 
@@ -27,4 +28,5 @@ export function loadCashData(): CashAppData {
 
 export function saveCashData(data: CashAppData): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+  notifyDataChanged()
 }

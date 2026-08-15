@@ -402,7 +402,7 @@ function App() {
       )}
 
       <footer className="footer">
-        البيانات تُحفظ على هذا الجهاز · أغسطس {YEAR}
+        البيانات تُحفظ تلقائياً (محلي + سحابة/قرص) · أغسطس {YEAR}
       </footer>
     </div>
   )
