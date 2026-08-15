@@ -229,7 +229,7 @@ input {
 .cash-day-head {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: center;
   gap: 1rem;
   flex-wrap: wrap;
   margin-bottom: 0.85rem;
@@ -244,8 +244,44 @@ input {
 }
 
 .cash-day-head p {
-  margin: 0;
+  margin: 0.25rem 0 0;
   color: var(--muted);
+}
+
+.cash-month-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.cash-month-nav button {
+  appearance: none;
+  border: 1px solid var(--line);
+  background: rgba(26, 43, 35, 0.9);
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 0.5rem 0.9rem;
+  cursor: pointer;
+  font: inherit;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.cash-month-nav button:hover {
+  color: var(--text);
+  border-color: var(--line-strong, rgba(93, 190, 142, 0.35));
+}
+
+.cash-month-nav button.ghost {
+  background: rgba(93, 190, 142, 0.12);
+  color: var(--in);
+}
+
+.cash-month-nav strong {
+  min-width: 8.5rem;
+  text-align: center;
+  font-family: var(--font-display);
+  color: var(--text);
 }
 
 .cash-day-grid {
@@ -268,6 +304,10 @@ input {
 .cash-day-btn.filled {
   border-color: rgba(93, 190, 142, 0.35);
   color: var(--text);
+}
+
+.cash-day-btn.today:not(.selected) {
+  box-shadow: inset 0 0 0 1px rgba(93, 190, 142, 0.55);
 }
 
 .cash-day-btn.selected {

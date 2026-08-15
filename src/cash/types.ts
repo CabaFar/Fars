@@ -5,10 +5,6 @@ export const BRANCHES: { id: BranchId; name: string }[] = [
   { id: 'beirut', name: 'فرع بيروت' },
 ]
 
-/** شهر أغسطس — صفحة الكاش مستقلة عن محاسبة المطعم */
-export const YEAR = 2026
-export const MONTH = 7 // August (0-indexed)
-
 export type CashDay = {
   cash: number
   cashExpense: number
@@ -41,8 +37,12 @@ export function daysInMonth(year: number, month: number): number {
   return new Date(year, month + 1, 0).getDate()
 }
 
-export function dateKey(day: number): string {
-  return `${YEAR}-${String(MONTH + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+export function pad2(n: number): string {
+  return String(n).padStart(2, '0')
+}
+
+export function dateKeyFromParts(year: number, month: number, day: number): string {
+  return `${year}-${pad2(month + 1)}-${pad2(day)}`
 }
 
 export function formatMoney(value: number): string {
@@ -54,11 +54,16 @@ export function formatMoney(value: number): string {
 
 export type CashMoneyField = 'cash' | 'cashExpense'
 
-export function sumField(data: CashBranchData, field: CashMoneyField): number {
-  const days = daysInMonth(YEAR, MONTH)
+export function sumField(
+  data: CashBranchData,
+  field: CashMoneyField,
+  year: number,
+  month: number,
+): number {
+  const days = daysInMonth(year, month)
   let total = 0
   for (let d = 1; d <= days; d++) {
-    total += data[dateKey(d)]?.[field] || 0
+    total += data[dateKeyFromParts(year, month, d)]?.[field] || 0
   }
   return total
 }

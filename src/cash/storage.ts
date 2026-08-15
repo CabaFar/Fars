@@ -1,7 +1,7 @@
 import type { CashAppData } from './types'
 import { emptyCashAppData, normalizeCashDay } from './types'
 
-/** مفتاح تخزين مستقل — لا يرتبط بمحاسبة أغسطس */
+/** مفتاح تخزين مستقل لكل الأشهر — يحفظ بيانات أغسطس السابقة أيضاً */
 const STORAGE_KEY = 'daily-cash-ledger-aug-2026-v1'
 
 export function loadCashData(): CashAppData {

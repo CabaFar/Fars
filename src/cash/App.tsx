@@ -2,9 +2,7 @@ import { useEffect, useState } from 'react'
 import {
   ARABIC_DAYS,
   BRANCHES,
-  MONTH,
-  YEAR,
-  dateKey,
+  dateKeyFromParts,
   daysInMonth,
   formatMoney,
   normalizeCashDay,
@@ -16,14 +14,27 @@ import {
 } from './types'
 import { loadCashData, saveCashData } from './storage'
 
+function todayParts() {
+  const d = new Date()
+  return { year: d.getFullYear(), month: d.getMonth(), day: d.getDate() }
+}
+
 function CashApp() {
+  const now = todayParts()
   const [data, setData] = useState<CashAppData>(() => loadCashData())
-  const [selectedDay, setSelectedDay] = useState(1)
+  const [year, setYear] = useState(now.year)
+  const [month, setMonth] = useState(now.month)
+  const [selectedDay, setSelectedDay] = useState(
+    Math.min(now.day, daysInMonth(now.year, now.month)),
+  )
   const [savedFlash, setSavedFlash] = useState(false)
 
-  const totalDays = daysInMonth(YEAR, MONTH)
-  const key = dateKey(selectedDay)
-  const weekday = ARABIC_DAYS[new Date(YEAR, MONTH, selectedDay).getDay()]
+  const totalDays = daysInMonth(year, month)
+  const key = dateKeyFromParts(year, month, selectedDay)
+  const weekday = ARABIC_DAYS[new Date(year, month, selectedDay).getDay()]
+  const monthLabel = new Intl.DateTimeFormat('ar-SA', { month: 'long', year: 'numeric' }).format(
+    new Date(year, month, 1),
+  )
 
   useEffect(() => {
     saveCashData(data)
@@ -31,6 +42,11 @@ function CashApp() {
     const t = window.setTimeout(() => setSavedFlash(false), 1200)
     return () => window.clearTimeout(t)
   }, [data])
+
+  useEffect(() => {
+    const max = daysInMonth(year, month)
+    if (selectedDay > max) setSelectedDay(max)
+  }, [year, month, selectedDay])
 
   const updateDay = (branchId: BranchId, field: CashMoneyField, value: number) => {
     setData((prev) => ({
@@ -63,13 +79,26 @@ function CashApp() {
     return Number.isFinite(n) ? n : 0
   }
 
+  const shiftMonth = (delta: number) => {
+    const next = new Date(year, month + delta, 1)
+    setYear(next.getFullYear())
+    setMonth(next.getMonth())
+  }
+
+  const goToday = () => {
+    const t = todayParts()
+    setYear(t.year)
+    setMonth(t.month)
+    setSelectedDay(t.day)
+  }
+
   const wasitaDay = normalizeCashDay(data.wasita[key])
   const beirutDay = normalizeCashDay(data.beirut[key])
 
-  const wasitaCashTotal = sumField(data.wasita, 'cash')
-  const beirutCashTotal = sumField(data.beirut, 'cash')
-  const wasitaExpenseTotal = sumField(data.wasita, 'cashExpense')
-  const beirutExpenseTotal = sumField(data.beirut, 'cashExpense')
+  const wasitaCashTotal = sumField(data.wasita, 'cash', year, month)
+  const beirutCashTotal = sumField(data.beirut, 'cash', year, month)
+  const wasitaExpenseTotal = sumField(data.wasita, 'cashExpense', year, month)
+  const beirutExpenseTotal = sumField(data.beirut, 'cashExpense', year, month)
   const grandCash = wasitaCashTotal + beirutCashTotal
   const grandExpense = wasitaExpenseTotal + beirutExpenseTotal
   const grandNet = grandCash - grandExpense
@@ -79,7 +108,7 @@ function CashApp() {
   const dayNet = dayCash - dayExpense
 
   const hasDayData = (day: number) => {
-    const k = dateKey(day)
+    const k = dateKeyFromParts(year, month, day)
     const w = normalizeCashDay(data.wasita[k])
     const b = normalizeCashDay(data.beirut[k])
     return Boolean(
@@ -103,7 +132,7 @@ function CashApp() {
           <div>
             <h1>سجل الكاش اليومي</h1>
             <p>
-              من 1 إلى {totalDays} أغسطس {YEAR} · فرع الوسيطاء وفرع بيروت
+              كل الأشهر · فرع الوسيطاء وفرع بيروت · {monthLabel}
             </p>
           </div>
         </div>
@@ -121,11 +150,11 @@ function CashApp() {
 
       <section className="cash-kpis" aria-label="ملخص الكاش">
         <article>
-          <span>كاش الوسيطاء</span>
+          <span>كاش الوسيطاء — {monthLabel}</span>
           <strong className="in">{formatMoney(wasitaCashTotal)}</strong>
         </article>
         <article>
-          <span>كاش بيروت</span>
+          <span>كاش بيروت — {monthLabel}</span>
           <strong className="in">{formatMoney(beirutCashTotal)}</strong>
         </article>
         <article>
@@ -140,30 +169,48 @@ function CashApp() {
 
       <section className="cash-day-panel">
         <div className="cash-day-head">
-          <h2>
-            يوم {selectedDay} أغسطس — {weekday}
-          </h2>
-          <p>صافي اليوم: {formatMoney(dayNet)}</p>
-        </div>
-        <div className="cash-day-grid" role="listbox" aria-label="أيام أغسطس">
-          {Array.from({ length: totalDays }, (_, i) => i + 1).map((day) => (
-            <button
-              key={day}
-              type="button"
-              role="option"
-              aria-selected={selectedDay === day}
-              className={[
-                'cash-day-btn',
-                selectedDay === day ? 'selected' : '',
-                hasDayData(day) ? 'filled' : '',
-              ]
-                .filter(Boolean)
-                .join(' ')}
-              onClick={() => setSelectedDay(day)}
-            >
-              {day}
+          <div>
+            <h2>
+              يوم {selectedDay} — {weekday} · {monthLabel}
+            </h2>
+            <p>صافي اليوم: {formatMoney(dayNet)}</p>
+          </div>
+          <div className="cash-month-nav">
+            <button type="button" onClick={() => shiftMonth(-1)} aria-label="الشهر السابق">
+              ›
             </button>
-          ))}
+            <strong>{monthLabel}</strong>
+            <button type="button" onClick={() => shiftMonth(1)} aria-label="الشهر التالي">
+              ‹
+            </button>
+            <button type="button" className="ghost" onClick={goToday}>
+              اليوم
+            </button>
+          </div>
+        </div>
+        <div className="cash-day-grid" role="listbox" aria-label="أيام الشهر">
+          {Array.from({ length: totalDays }, (_, i) => i + 1).map((day) => {
+            const isToday = day === now.day && month === now.month && year === now.year
+            return (
+              <button
+                key={day}
+                type="button"
+                role="option"
+                aria-selected={selectedDay === day}
+                className={[
+                  'cash-day-btn',
+                  selectedDay === day ? 'selected' : '',
+                  hasDayData(day) ? 'filled' : '',
+                  isToday ? 'today' : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+                onClick={() => setSelectedDay(day)}
+              >
+                {day}
+              </button>
+            )
+          })}
         </div>
       </section>
 
@@ -235,7 +282,7 @@ function CashApp() {
       </section>
 
       <section className="cash-ledger">
-        <h3>سجل الشهر — أغسطس {YEAR}</h3>
+        <h3>سجل الشهر — {monthLabel}</h3>
         <div className="cash-table-wrap">
           <table>
             <thead>
@@ -253,11 +300,11 @@ function CashApp() {
             </thead>
             <tbody>
               {Array.from({ length: totalDays }, (_, i) => i + 1).map((day) => {
-                const k = dateKey(day)
+                const k = dateKeyFromParts(year, month, day)
                 const w = normalizeCashDay(data.wasita[k])
                 const b = normalizeCashDay(data.beirut[k])
                 const net = w.cash + b.cash - w.cashExpense - b.cashExpense
-                const wd = ARABIC_DAYS[new Date(YEAR, MONTH, day).getDay()]
+                const wd = ARABIC_DAYS[new Date(year, month, day).getDay()]
                 return (
                   <tr
                     key={day}
@@ -298,7 +345,7 @@ function CashApp() {
       </section>
 
       <footer className="cash-footer">
-        صفحة مستقلة لسجل الكاش · البيانات تُحفظ على هذا الجهاز فقط
+        صفحة مستقلة لسجل الكاش لكل الأشهر · البيانات تُحفظ على هذا الجهاز فقط
       </footer>
     </div>
   )
