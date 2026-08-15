@@ -26,8 +26,12 @@ export function getSupabase(): SupabaseClient {
   return client
 }
 
-/** اسم المستخدم → بريد داخلي لـ Supabase Auth (بدون بريد حقيقي) */
+/** اسم المستخدم → بريد داخلي صالح لـ Supabase Auth */
 export function usernameToEmail(username: string): string {
-  const clean = username.trim().toLowerCase().replace(/\s+/g, '')
-  return `${clean}@fars.users`
+  const clean = username
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]/g, '')
+    .replace(/^\.+|\.+$/g, '')
+  return `${clean || 'user'}@fars.app`
 }
