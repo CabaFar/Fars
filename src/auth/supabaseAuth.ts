@@ -20,9 +20,25 @@ export async function registerUser(username: string, password: string): Promise<
     password,
     options: { data: { username: name } },
   })
-  if (error) throw new Error(error.message)
+  if (error) {
+    if (/rate limit|email rate/i.test(error.message)) {
+      throw new Error(
+        'تم تجاوز حد إرسال البريد المجاني في Supabase مؤقتاً. انتظر 30–60 دقيقة أو أرسل Secret key (sb_secret_...) لتخطي الإيميل.',
+      )
+    }
+    if (/email.*disabled|provider.*disabled/i.test(error.message)) {
+      throw new Error('مزود البريد معطّل. في Providers → Email شغّل Enable email provider ثم Save.')
+    }
+    throw new Error(error.message)
+  }
   const user = data.user
-  if (!user) throw new Error('تعذر إنشاء الحساب')
+  if (!user) throw new Error('تعذر إنشاء الحساب — قد يلزم تأكيد البريد. تأكد أن Confirm email معطّل إن وُجد.')
+  // إن لم تُرجع جلسة، غالباً التأكيد مفعّل
+  if (!data.session) {
+    throw new Error(
+      'الحساب أُنشئ لكن بدون جلسة (تأكيد البريد مفعّل). عطّل Confirm email/signups من إعدادات Auth ثم أعد المحاولة.',
+    )
+  }
 
   const { error: profileError } = await supabase.from('profiles').upsert({
     id: user.id,
@@ -51,6 +67,14 @@ export async function loginUser(username: string, password: string): Promise<voi
   if (error) {
     if (/invalid login/i.test(error.message)) {
       throw new Error('اسم المستخدم أو كلمة المرور غير صحيحة')
+    }
+    if (/rate limit|email rate/i.test(error.message)) {
+      throw new Error(
+        'تم تجاوز حد إرسال البريد المجاني في Supabase مؤقتاً. انتظر قليلاً أو أرسل Secret key لتخطي الإيميل.',
+      )
+    }
+    if (/email.*disabled|provider.*disabled/i.test(error.message)) {
+      throw new Error('مزود البريد معطّل في Supabase. فعّل Enable email provider ثم Save.')
     }
     throw new Error(error.message)
   }
