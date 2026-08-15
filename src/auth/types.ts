@@ -57,5 +57,5 @@ export const DISK_HANDLE_KEY = 'fars-disk-handle-v1'
 export const DATA_CHANGED_EVENT = 'fars-data-changed'
 
 /** kvdb.io bucket — يفعّل بعد تأكيد البريد */
-export const KVDB_BUCKET = 'JiVqviTVSZesTH7vaH2yo7'
+export const KVDB_BUCKET = 'FayQZZ7D2QvdqoEDaRWsXi'
 export const PUTER_KEY_PREFIX = 'fars-vault:'
