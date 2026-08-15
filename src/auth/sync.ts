@@ -65,20 +65,23 @@ export async function registerUser(username: string, password: string, remember:
 
 export async function loginUser(username: string, password: string, remember: boolean): Promise<void> {
   const name = normalizeUsername(username)
-  const localOk = await verifyLocalAccount(name, password)
+  const localAccount = getLocalAccount(name)
 
-  if (localOk) {
-    const account = getLocalAccount(name)!
-    const key = await deriveAesKey(password, b64ToBuf(account.salt))
+  // حساب موجود على هذا الجهاز لكن كلمة المرور خاطئة
+  if (localAccount) {
+    const localOk = await verifyLocalAccount(name, password)
+    if (!localOk) {
+      throw new Error('كلمة المرور غير صحيحة')
+    }
+    const key = await deriveAesKey(password, b64ToBuf(localAccount.salt))
     await setLiveSession(name, key, remember)
-    // حاول جلب نسخة أحدث من السحابة
     const remote = await pullCloud(name)
     if (remote) {
       try {
         await restoreFromBlob(remote, password)
         status.cloudMessage = 'تم جلب أحدث البيانات من السحابة'
       } catch {
-        // كلمة المرور صحيحة محلياً لكن الملف السحابي قديم/تالف — نتجاهل
+        // تجاهل نسخة سحابية تالفة
       }
     }
     status.cloud = 'ok'
@@ -89,22 +92,47 @@ export async function loginUser(username: string, password: string, remember: bo
     return
   }
 
-  // جهاز جديد: حاول السحابة ثم ملف محلي لاحقاً من الواجهة
+  // لا يوجد حساب محلي: حاول السحابة (جهاز آخر)
   const remote = await pullCloud(name)
-  if (!remote) {
-    throw new Error('تعذر الدخول. أنشئ حساباً أو استورد نسخة من القرص/السحابة.')
+  if (remote) {
+    try {
+      const { key } = await restoreFromBlob(remote, password)
+      await setLiveSession(name, key, remember)
+      status.cloud = 'ok'
+      status.cloudMessage = 'تم استعادة البيانات من السحابة'
+      status.lastSavedAt = Date.now()
+      lastFingerprint = vaultFingerprint(collectVaultPayload())
+      emit()
+      startAutoSync()
+      return
+    } catch {
+      throw new Error('اسم المستخدم أو كلمة المرور غير صحيحة')
+    }
   }
+
+  // أول مرة على هذا الجهاز ولا توجد نسخة سحابية بعد
+  throw new Error(
+    'لا يوجد حساب بهذا الاسم على هذا الجهاز، والسحابة لا تحتوي نسخة بعد. اضغط «حساب جديد» لإنشائه هنا، أو استورد ملف النسخة الاحتياطية.',
+  )
+}
+
+/** دخول، أو إنشاء الحساب تلقائياً إن لم يوجد محلياً ولا في السحابة */
+export async function loginOrRegister(
+  username: string,
+  password: string,
+  remember: boolean,
+  allowCreate: boolean,
+): Promise<'login' | 'register'> {
   try {
-    const { key } = await restoreFromBlob(remote, password)
-    await setLiveSession(name, key, remember)
-    status.cloud = 'ok'
-    status.cloudMessage = 'تم استعادة البيانات من السحابة'
-    status.lastSavedAt = Date.now()
-    lastFingerprint = vaultFingerprint(collectVaultPayload())
-    emit()
-    startAutoSync()
-  } catch {
-    throw new Error('اسم المستخدم أو كلمة المرور غير صحيحة')
+    await loginUser(username, password, remember)
+    return 'login'
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : ''
+    if (allowCreate && msg.includes('لا يوجد حساب')) {
+      await registerUser(username, password, remember)
+      return 'register'
+    }
+    throw err
   }
 }
 

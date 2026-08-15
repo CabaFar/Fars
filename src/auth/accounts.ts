@@ -60,3 +60,7 @@ export function ensureLocalAccountRecord(username: string, account: LocalAccount
 export function getLocalAccount(username: string): LocalAccount | null {
   return loadAccounts().users[normalizeUsername(username)] ?? null
 }
+
+export function hasAnyLocalAccount(): boolean {
+  return Object.keys(loadAccounts().users).length > 0
+}

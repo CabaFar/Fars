@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import {
   loginFromDiskBlob,
-  loginUser,
+  loginOrRegister,
   logoutUser,
   registerUser,
   subscribeSync,
@@ -17,6 +17,7 @@ import {
   pullCloud,
   readDiskBackupFile,
 } from './cloud'
+import { hasAnyLocalAccount } from './accounts'
 import { getLiveSession, restoreSession } from './session'
 import { applyVaultPayload } from './vault'
 import type { SyncStatus } from './types'
@@ -70,7 +71,7 @@ export function SyncBar() {
 export function AuthGate({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false)
   const [authed, setAuthed] = useState(false)
-  const [mode, setMode] = useState<Mode>('login')
+  const [mode, setMode] = useState<Mode>(() => (hasAnyLocalAccount() ? 'login' : 'register'))
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [remember, setRemember] = useState(true)
@@ -97,7 +98,6 @@ export function AuthGate({ children }: { children: ReactNode }) {
     })()
   }, [])
 
-  // إعادة رسم عند الخروج
   useEffect(() => {
     const id = window.setInterval(() => {
       setAuthed(Boolean(getLiveSession()))
@@ -113,7 +113,8 @@ export function AuthGate({ children }: { children: ReactNode }) {
       if (mode === 'register') {
         await registerUser(username, password, remember)
       } else {
-        await loginUser(username, password, remember)
+        // إن لم يوجد حساب محلي/سحابي يُنشأ تلقائياً عند أول دخول
+        await loginOrRegister(username, password, remember, true)
       }
       setAuthed(true)
     } catch (err) {
@@ -169,7 +170,9 @@ export function AuthGate({ children }: { children: ReactNode }) {
           <p className="fars-brand">فارس</p>
           <h1>{mode === 'login' ? 'تسجيل الدخول' : 'إنشاء حساب'}</h1>
           <p className="fars-auth-lead">
-            اسم مستخدم وكلمة مرور · الحفظ تلقائي محلياً وعلى السحابة أو ملف القرص/OneDrive
+            {mode === 'register'
+              ? 'أول مرة؟ أنشئ اسم مستخدم وكلمة مرور — البيانات تُحفظ تلقائياً على هذا الجهاز.'
+              : 'أدخل نفس اسم المستخدم وكلمة المرور. إن لم يكن الحساب موجوداً سيُنشأ تلقائياً.'}
           </p>
           <form onSubmit={onSubmit} className="fars-auth-form">
             <label>

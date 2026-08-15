@@ -144,12 +144,17 @@ export async function cloudPutPuter(blob: EncryptedBlob): Promise<{ ok: boolean;
   }
 }
 
-export async function cloudGetPuter(username: string): Promise<EncryptedBlob | null> {
+export async function cloudGetPuter(
+  username: string,
+  options: { promptSignIn?: boolean } = {},
+): Promise<EncryptedBlob | null> {
   const ready = await ensurePuter()
   if (!ready || !window.puter?.kv) return null
   try {
-    if (window.puter.auth && !window.puter.auth.isSignedIn()) {
-      await window.puter.auth.signIn()
+    const signedIn = window.puter.auth?.isSignedIn?.() ?? false
+    if (!signedIn) {
+      if (!options.promptSignIn) return null
+      await window.puter.auth?.signIn()
     }
     const raw = await window.puter.kv.get(vaultKey(username))
     if (!raw) return null
@@ -207,10 +212,13 @@ export async function pushCloud(blob: EncryptedBlob): Promise<{ ok: boolean; mes
   }
 }
 
-export async function pullCloud(username: string): Promise<EncryptedBlob | null> {
+export async function pullCloud(
+  username: string,
+  options: { promptSignIn?: boolean } = {},
+): Promise<EncryptedBlob | null> {
   const fromKv = await cloudGetKvdb(username)
   if (fromKv) return fromKv
-  return cloudGetPuter(username)
+  return cloudGetPuter(username, options)
 }
 
 export function downloadDiskBackup(blob: EncryptedBlob): void {
