@@ -1,3 +1,4 @@
+import { notifyDataChanged } from '../auth/vault'
 import type { Employee } from './types'
 import { emptyEmployee, normalizePaymentMethod } from './types'
 
@@ -31,4 +32,5 @@ export function loadEmployees(): Employee[] {
 
 export function saveEmployees(employees: Employee[]): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(employees))
+  notifyDataChanged()
 }

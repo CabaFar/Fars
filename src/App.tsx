@@ -402,7 +402,7 @@ function App() {
       )}
 
       <footer className="footer">
-        البيانات تُحفظ على هذا الجهاز · أغسطس {YEAR}
+        البيانات Offline-first · PostgreSQL/Supabase · أغسطس {YEAR}
       </footer>
     </div>
   )
