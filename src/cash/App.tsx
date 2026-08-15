@@ -142,6 +142,7 @@ function CashApp() {
             الكاش
           </a>
           <a href="./inventory.html">المخزون</a>
+          <a href="./hr.html">الموارد البشرية</a>
         </nav>
         <div className={`cash-save ${savedFlash ? 'on' : ''}`}>
           {savedFlash ? 'تم الحفظ' : 'حفظ تلقائي'}

@@ -11,6 +11,7 @@ export default defineConfig({
         main: resolve(__dirname, 'index.html'),
         cash: resolve(__dirname, 'cash.html'),
         inventory: resolve(__dirname, 'inventory.html'),
+        hr: resolve(__dirname, 'hr.html'),
       },
     },
   },

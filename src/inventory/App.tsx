@@ -374,6 +374,7 @@ function InventoryApp() {
           <a className="current" href="./inventory.html">
             المخزون
           </a>
+          <a href="./hr.html">الموارد البشرية</a>
         </nav>
         <div className={`inv-save ${savedFlash ? 'on' : ''}`}>
           {savedFlash ? 'تم الحفظ' : 'حفظ تلقائي'}

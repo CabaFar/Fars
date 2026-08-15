@@ -123,6 +123,7 @@ function App() {
           </a>
           <a href="./cash.html">الكاش</a>
           <a href="./inventory.html">المخزون</a>
+          <a href="./hr.html">الموارد البشرية</a>
         </nav>
         <div className={`save-pill ${savedFlash ? 'on' : ''}`}>
           {savedFlash ? 'تم الحفظ تلقائياً' : 'الحفظ تلقائي'}
