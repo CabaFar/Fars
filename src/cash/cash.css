@@ -334,6 +334,31 @@ input {
   color: var(--out);
 }
 
+.cash-field.note textarea {
+  width: 100%;
+  min-height: 4.5rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: rgba(8, 14, 11, 0.9);
+  color: var(--text);
+  font: inherit;
+  line-height: 1.55;
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.cash-field.note textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.cash-field.note textarea::placeholder {
+  color: var(--muted);
+  opacity: 0.8;
+}
+
 .cash-field input:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-glow);
@@ -393,7 +418,7 @@ input {
 .cash-ledger table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 720px;
+  min-width: 920px;
   font-size: 0.92rem;
 }
 
@@ -402,6 +427,15 @@ input {
   padding: 0.7rem 0.85rem;
   text-align: right;
   border-bottom: 1px solid var(--line);
+}
+
+.cash-ledger td.note-cell {
+  max-width: 12rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
 }
 
 .cash-ledger th {

@@ -12,6 +12,8 @@ export const MONTH = 7 // August (0-indexed)
 export type CashDay = {
   cash: number
   cashExpense: number
+  /** ملاحظات: فيما صُرفت مصروفات الكاش */
+  expenseNote: string
 }
 
 export type CashBranchData = Record<string, CashDay>
@@ -28,7 +30,7 @@ export const ARABIC_DAYS = [
 ]
 
 export function emptyCashDay(): CashDay {
-  return { cash: 0, cashExpense: 0 }
+  return { cash: 0, cashExpense: 0, expenseNote: '' }
 }
 
 export function emptyCashAppData(): CashAppData {
@@ -50,11 +52,22 @@ export function formatMoney(value: number): string {
   }).format(value)
 }
 
-export function sumField(data: CashBranchData, field: keyof CashDay): number {
+export type CashMoneyField = 'cash' | 'cashExpense'
+
+export function sumField(data: CashBranchData, field: CashMoneyField): number {
   const days = daysInMonth(YEAR, MONTH)
   let total = 0
   for (let d = 1; d <= days; d++) {
     total += data[dateKey(d)]?.[field] || 0
   }
   return total
+}
+
+/** تطبيع يوم قديم محفوظ قبل إضافة خانة الملاحظات */
+export function normalizeCashDay(day: Partial<CashDay> | undefined): CashDay {
+  return {
+    cash: day?.cash || 0,
+    cashExpense: day?.cashExpense || 0,
+    expenseNote: day?.expenseNote ?? '',
+  }
 }

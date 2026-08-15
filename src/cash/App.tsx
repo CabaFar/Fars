@@ -6,12 +6,13 @@ import {
   YEAR,
   dateKey,
   daysInMonth,
-  emptyCashDay,
   formatMoney,
+  normalizeCashDay,
   sumField,
   type BranchId,
   type CashAppData,
   type CashDay,
+  type CashMoneyField,
 } from './types'
 import { loadCashData, saveCashData } from './storage'
 
@@ -31,14 +32,27 @@ function CashApp() {
     return () => window.clearTimeout(t)
   }, [data])
 
-  const updateDay = (branchId: BranchId, field: keyof CashDay, value: number) => {
+  const updateDay = (branchId: BranchId, field: CashMoneyField, value: number) => {
     setData((prev) => ({
       ...prev,
       [branchId]: {
         ...prev[branchId],
         [key]: {
-          ...(prev[branchId][key] ?? emptyCashDay()),
+          ...normalizeCashDay(prev[branchId][key]),
           [field]: value,
+        },
+      },
+    }))
+  }
+
+  const updateExpenseNote = (branchId: BranchId, value: string) => {
+    setData((prev) => ({
+      ...prev,
+      [branchId]: {
+        ...prev[branchId],
+        [key]: {
+          ...normalizeCashDay(prev[branchId][key]),
+          expenseNote: value,
         },
       },
     }))
@@ -49,8 +63,8 @@ function CashApp() {
     return Number.isFinite(n) ? n : 0
   }
 
-  const wasitaDay = data.wasita[key] ?? emptyCashDay()
-  const beirutDay = data.beirut[key] ?? emptyCashDay()
+  const wasitaDay = normalizeCashDay(data.wasita[key])
+  const beirutDay = normalizeCashDay(data.beirut[key])
 
   const wasitaCashTotal = sumField(data.wasita, 'cash')
   const beirutCashTotal = sumField(data.beirut, 'cash')
@@ -66,11 +80,15 @@ function CashApp() {
 
   const hasDayData = (day: number) => {
     const k = dateKey(day)
-    const w = data.wasita[k]
-    const b = data.beirut[k]
+    const w = normalizeCashDay(data.wasita[k])
+    const b = normalizeCashDay(data.beirut[k])
     return Boolean(
-      (w && (w.cash !== 0 || w.cashExpense !== 0)) ||
-        (b && (b.cash !== 0 || b.cashExpense !== 0)),
+      w.cash !== 0 ||
+        w.cashExpense !== 0 ||
+        w.expenseNote.trim() ||
+        b.cash !== 0 ||
+        b.cashExpense !== 0 ||
+        b.expenseNote.trim(),
     )
   }
 
@@ -153,7 +171,7 @@ function CashApp() {
         <h3>تسجيل اليوم — الكاش ومصروفات الكاش</h3>
         <div className="cash-cards">
           {BRANCHES.map((branch) => {
-            const day = branch.id === 'wasita' ? wasitaDay : beirutDay
+            const day: CashDay = branch.id === 'wasita' ? wasitaDay : beirutDay
             const net = day.cash - day.cashExpense
             return (
               <article key={branch.id} className="cash-card">
@@ -180,6 +198,15 @@ function CashApp() {
                     onChange={(e) =>
                       updateDay(branch.id, 'cashExpense', parseNum(e.target.value))
                     }
+                  />
+                </label>
+                <label className="cash-field note">
+                  <span>ملاحظات المصروف — فيما صُرفت</span>
+                  <textarea
+                    rows={3}
+                    value={day.expenseNote}
+                    placeholder="مثال: شراء خضار، غاز، صيانة..."
+                    onChange={(e) => updateExpenseNote(branch.id, e.target.value)}
                   />
                 </label>
                 <div className="cash-net">
@@ -217,16 +244,18 @@ function CashApp() {
                 <th>اليوم الأسبوعي</th>
                 <th>كاش الوسيطاء</th>
                 <th>مصروف الوسيطاء</th>
+                <th>ملاحظات الوسيطاء</th>
                 <th>كاش بيروت</th>
                 <th>مصروف بيروت</th>
+                <th>ملاحظات بيروت</th>
                 <th>صافي الفرعين</th>
               </tr>
             </thead>
             <tbody>
               {Array.from({ length: totalDays }, (_, i) => i + 1).map((day) => {
                 const k = dateKey(day)
-                const w = data.wasita[k] ?? emptyCashDay()
-                const b = data.beirut[k] ?? emptyCashDay()
+                const w = normalizeCashDay(data.wasita[k])
+                const b = normalizeCashDay(data.beirut[k])
                 const net = w.cash + b.cash - w.cashExpense - b.cashExpense
                 const wd = ARABIC_DAYS[new Date(YEAR, MONTH, day).getDay()]
                 return (
@@ -241,10 +270,12 @@ function CashApp() {
                     <td className={w.cashExpense > 0 ? 'out' : ''}>
                       {formatMoney(w.cashExpense)}
                     </td>
+                    <td className="note-cell">{w.expenseNote || '—'}</td>
                     <td className={b.cash > 0 ? 'in' : ''}>{formatMoney(b.cash)}</td>
                     <td className={b.cashExpense > 0 ? 'out' : ''}>
                       {formatMoney(b.cashExpense)}
                     </td>
+                    <td className="note-cell">{b.expenseNote || '—'}</td>
                     <td className={net >= 0 ? 'in' : 'out'}>{formatMoney(net)}</td>
                   </tr>
                 )
@@ -255,8 +286,10 @@ function CashApp() {
                 <td colSpan={2}>المجموع</td>
                 <td>{formatMoney(wasitaCashTotal)}</td>
                 <td>{formatMoney(wasitaExpenseTotal)}</td>
+                <td />
                 <td>{formatMoney(beirutCashTotal)}</td>
                 <td>{formatMoney(beirutExpenseTotal)}</td>
+                <td />
                 <td className={grandNet >= 0 ? 'in' : 'out'}>{formatMoney(grandNet)}</td>
               </tr>
             </tfoot>
