@@ -64,6 +64,7 @@ function HrApp() {
       jobTitle: emp.jobTitle,
       salary: emp.salary,
       deductions: emp.deductions,
+      deductionNote: emp.deductionNote ?? '',
       advances: emp.advances,
       iqamaExpiry: emp.iqamaExpiry,
       healthCertExpiry: emp.healthCertExpiry,
@@ -89,6 +90,7 @@ function HrApp() {
       jobTitle: form.jobTitle.trim(),
       salary: form.salary || 0,
       deductions: form.deductions || 0,
+      deductionNote: form.deductionNote.trim(),
       advances: form.advances || 0,
       iqamaExpiry: form.iqamaExpiry,
       healthCertExpiry: form.healthCertExpiry,
@@ -181,6 +183,7 @@ function HrApp() {
                 <th>المسمى الوظيفي</th>
                 <th>الراتب</th>
                 <th>الخصومات</th>
+                <th>سبب الخصم</th>
                 <th>السلف</th>
                 <th>صافي الراتب</th>
                 <th>انتهاء الإقامة</th>
@@ -198,6 +201,7 @@ function HrApp() {
                   <td>{emp.jobTitle || '—'}</td>
                   <td>{formatMoney(emp.salary)}</td>
                   <td>{formatMoney(emp.deductions)}</td>
+                  <td className="note-cell">{emp.deductionNote || '—'}</td>
                   <td>{formatMoney(emp.advances)}</td>
                   <td>
                     <strong>{formatMoney(netSalary(emp))}</strong>
@@ -326,6 +330,15 @@ function EmployeeDialog({
               step="0.01"
               value={form.deductions || ''}
               onChange={(e) => setField('deductions', parseNum(e.target.value))}
+            />
+          </label>
+          <label className="span-2">
+            <span>ملاحظة سبب الخصم</span>
+            <textarea
+              rows={2}
+              value={form.deductionNote}
+              placeholder="مثال: غياب يومين، تأخير، خصم عهدة..."
+              onChange={(e) => setField('deductionNote', e.target.value)}
             />
           </label>
           <label>

@@ -17,6 +17,7 @@ export function loadEmployees(): Employee[] {
       jobTitle: row.jobTitle ?? '',
       salary: Number(row.salary) || 0,
       deductions: Number(row.deductions) || 0,
+      deductionNote: row.deductionNote ?? '',
       advances: Number(row.advances) || 0,
       iqamaExpiry: row.iqamaExpiry ?? '',
       healthCertExpiry: row.healthCertExpiry ?? '',

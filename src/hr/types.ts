@@ -4,6 +4,8 @@ export type Employee = {
   jobTitle: string
   salary: number
   deductions: number
+  /** ملاحظة توضح سبب الخصم */
+  deductionNote: string
   advances: number
   iqamaExpiry: string
   healthCertExpiry: string
@@ -24,6 +26,7 @@ export function emptyEmployee(): Omit<Employee, 'id'> {
     jobTitle: '',
     salary: 0,
     deductions: 0,
+    deductionNote: '',
     advances: 0,
     iqamaExpiry: '',
     healthCertExpiry: '',
