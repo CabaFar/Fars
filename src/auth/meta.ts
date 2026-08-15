@@ -44,3 +44,4 @@ export function loadUsername(): string | null {
 export function clearUsername(): void {
   localStorage.removeItem(USERNAME_KEY)
 }
+

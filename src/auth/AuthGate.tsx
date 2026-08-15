@@ -1,7 +1,15 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
-import { loginUser, logoutUser, registerUser, restoreAuthSession, getCachedUsername } from './authService'
-import { flushSync, getSyncStatus, subscribeSync } from './syncEngine'
-import { isSupabaseConfigured } from './supabaseClient'
+import {
+  loginUser,
+  logoutUser,
+  registerUser,
+  restoreAuthSession,
+  getCachedUsername,
+  subscribeSync,
+  getSyncStatus,
+  flushSync,
+  usingSupabase,
+} from './authService'
 import type { SyncStatus } from './types'
 import './auth.css'
 
@@ -60,7 +68,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
-  const configured = isSupabaseConfigured()
+  const supabaseMode = usingSupabase()
 
   useEffect(() => {
     void (async () => {
@@ -104,14 +112,10 @@ export function AuthGate({ children }: { children: ReactNode }) {
           <p className="fars-brand">فارس</p>
           <h1>{mode === 'login' ? 'تسجيل الدخول' : 'إنشاء حساب'}</h1>
           <p className="fars-auth-lead">
-            قاعدة PostgreSQL (Supabase) · مزامنة فورية بين الأجهزة · يعمل بدون إنترنت بعد أول دخول
+            {supabaseMode
+              ? 'PostgreSQL (Supabase) · مزامنة فورية · يعمل بدون إنترنت بعد أول دخول'
+              : 'Offline-first · حفظ محلي فوري · مزامنة بين الأجهزة عبر السحابة عند الاتصال'}
           </p>
-          {!configured ? (
-            <p className="fars-auth-error">
-              لم تُربط قاعدة البيانات بعد. أنشئ مشروع Supabase مجاني وأضف المفاتيح، أو نفّذ SQL من مجلد
-              supabase/schema.sql
-            </p>
-          ) : null}
           <form onSubmit={onSubmit} className="fars-auth-form">
             <label>
               اسم المستخدم
@@ -121,7 +125,6 @@ export function AuthGate({ children }: { children: ReactNode }) {
                 onChange={(e) => setUsername(e.target.value)}
                 required
                 minLength={3}
-                disabled={!configured}
               />
             </label>
             <label>
@@ -133,11 +136,10 @@ export function AuthGate({ children }: { children: ReactNode }) {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={4}
-                disabled={!configured}
               />
             </label>
             {error ? <p className="fars-auth-error">{error}</p> : null}
-            <button type="submit" disabled={busy || !configured}>
+            <button type="submit" disabled={busy}>
               {busy ? '...' : mode === 'login' ? 'دخول' : 'إنشاء الحساب'}
             </button>
           </form>
@@ -154,8 +156,10 @@ export function AuthGate({ children }: { children: ReactNode }) {
           </div>
           <div className="fars-auth-disk">
             <p>
-              بعد أول دخول يبقى العمل شغّال بدون نت (حفظ محلي). عند عودة الاتصال تُزامَن كل الأجهزة
-              تلقائياً.
+              بعد أول دخول يبقى العمل شغّال بدون نت. عند عودة الاتصال تُزامَن الأجهزة تلقائياً.
+              {!supabaseMode
+                ? ' عند أول مزامنة سحابية قد يظهر تسجيل دخول Puter المجاني (مرة واحدة).'
+                : ''}
             </p>
           </div>
         </div>
