@@ -1,8 +1,12 @@
+export type SalaryPaymentMethod = 'cash' | 'transfer'
+
 export type Employee = {
   id: string
   name: string
   jobTitle: string
   salary: number
+  /** طريقة صرف الراتب: كاش أو تحويل */
+  paymentMethod: SalaryPaymentMethod
   deductions: number
   /** ملاحظة توضح سبب الخصم */
   deductionNote: string
@@ -25,6 +29,7 @@ export function emptyEmployee(): Omit<Employee, 'id'> {
     name: '',
     jobTitle: '',
     salary: 0,
+    paymentMethod: 'cash',
     deductions: 0,
     deductionNote: '',
     advances: 0,
@@ -32,6 +37,19 @@ export function emptyEmployee(): Omit<Employee, 'id'> {
     healthCertExpiry: '',
     medicalInsuranceExpiry: '',
   }
+}
+
+export const PAYMENT_METHODS: { id: SalaryPaymentMethod; label: string }[] = [
+  { id: 'cash', label: 'كاش' },
+  { id: 'transfer', label: 'تحويل' },
+]
+
+export function paymentMethodLabel(method: SalaryPaymentMethod | undefined): string {
+  return PAYMENT_METHODS.find((row) => row.id === method)?.label ?? 'كاش'
+}
+
+export function normalizePaymentMethod(value: unknown): SalaryPaymentMethod {
+  return value === 'transfer' ? 'transfer' : 'cash'
 }
 
 export function netSalary(employee: Pick<Employee, 'salary' | 'deductions' | 'advances'>): number {

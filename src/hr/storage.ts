@@ -1,5 +1,5 @@
 import type { Employee } from './types'
-import { emptyEmployee } from './types'
+import { emptyEmployee, normalizePaymentMethod } from './types'
 
 const STORAGE_KEY = 'shawarma-hr-employees-v1'
 
@@ -16,6 +16,7 @@ export function loadEmployees(): Employee[] {
       name: row.name ?? '',
       jobTitle: row.jobTitle ?? '',
       salary: Number(row.salary) || 0,
+      paymentMethod: normalizePaymentMethod(row.paymentMethod),
       deductions: Number(row.deductions) || 0,
       deductionNote: row.deductionNote ?? '',
       advances: Number(row.advances) || 0,

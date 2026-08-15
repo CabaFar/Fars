@@ -2,15 +2,18 @@ import { useEffect, useMemo, useState } from 'react'
 import { loadEmployees, saveEmployees } from './storage'
 import {
   DOC_FIELDS,
+  PAYMENT_METHODS,
   emptyEmployee,
   expiryInfo,
   formatDateAr,
   formatMoney,
   netSalary,
   parseNum,
+  paymentMethodLabel,
   type DocKey,
   type Employee,
   type ExpiryTone,
+  type SalaryPaymentMethod,
 } from './types'
 
 type FormState = Omit<Employee, 'id'> & { id?: string }
@@ -63,6 +66,7 @@ function HrApp() {
       name: emp.name,
       jobTitle: emp.jobTitle,
       salary: emp.salary,
+      paymentMethod: emp.paymentMethod ?? 'cash',
       deductions: emp.deductions,
       deductionNote: emp.deductionNote ?? '',
       advances: emp.advances,
@@ -89,6 +93,7 @@ function HrApp() {
       name,
       jobTitle: form.jobTitle.trim(),
       salary: form.salary || 0,
+      paymentMethod: form.paymentMethod === 'transfer' ? 'transfer' : 'cash',
       deductions: form.deductions || 0,
       deductionNote: form.deductionNote.trim(),
       advances: form.advances || 0,
@@ -182,6 +187,7 @@ function HrApp() {
                 <th>اسم الموظف</th>
                 <th>المسمى الوظيفي</th>
                 <th>الراتب</th>
+                <th>طريقة الصرف</th>
                 <th>الخصومات</th>
                 <th>سبب الخصم</th>
                 <th>السلف</th>
@@ -200,6 +206,11 @@ function HrApp() {
                   </td>
                   <td>{emp.jobTitle || '—'}</td>
                   <td>{formatMoney(emp.salary)}</td>
+                  <td>
+                    <span className={`pay-badge pay-${emp.paymentMethod ?? 'cash'}`}>
+                      {paymentMethodLabel(emp.paymentMethod)}
+                    </span>
+                  </td>
                   <td>{formatMoney(emp.deductions)}</td>
                   <td className="note-cell">{emp.deductionNote || '—'}</td>
                   <td>{formatMoney(emp.advances)}</td>
@@ -320,6 +331,20 @@ function EmployeeDialog({
               value={form.salary || ''}
               onChange={(e) => setField('salary', parseNum(e.target.value))}
             />
+          </label>
+          <label>
+            <span>طريقة صرف الراتب</span>
+            <select
+              value={form.paymentMethod}
+              onChange={(e) => setField('paymentMethod', e.target.value as SalaryPaymentMethod)}
+              aria-label="طريقة صرف الراتب"
+            >
+              {PAYMENT_METHODS.map((method) => (
+                <option key={method.id} value={method.id}>
+                  {method.label}
+                </option>
+              ))}
+            </select>
           </label>
           <label>
             <span>الخصومات</span>
