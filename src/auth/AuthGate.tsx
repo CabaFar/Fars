@@ -1,25 +1,7 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
-import {
-  loginFromDiskBlob,
-  loginOrRegister,
-  logoutUser,
-  registerUser,
-  subscribeSync,
-  exportBackupDownload,
-  flushSync,
-  getSyncStatus,
-  startAutoSync,
-} from './sync'
-import {
-  openEncryptedBlobWithKey,
-  pickDiskFileForOpen,
-  pickDiskFileForSave,
-  pullCloud,
-  readDiskBackupFile,
-} from './cloud'
-import { hasAnyLocalAccount } from './accounts'
-import { getLiveSession, restoreSession } from './session'
-import { applyVaultPayload } from './vault'
+import { loginUser, logoutUser, registerUser, restoreAuthSession, getCachedUsername } from './authService'
+import { flushSync, getSyncStatus, subscribeSync } from './syncEngine'
+import { isSupabaseConfigured } from './supabaseClient'
 import type { SyncStatus } from './types'
 import './auth.css'
 
@@ -32,35 +14,37 @@ function formatTime(ts: number | null): string {
 
 export function SyncBar() {
   const [status, setStatus] = useState<SyncStatus>(() => getSyncStatus())
-  const session = getLiveSession()
+  const username = status.username || getCachedUsername()
 
   useEffect(() => subscribeSync(setStatus), [])
 
-  if (!session) return null
+  if (!username) return null
+
+  const phaseLabel =
+    status.phase === 'syncing'
+      ? 'جاري المزامنة…'
+      : status.phase === 'offline'
+        ? 'بدون نت · حفظ محلي'
+        : status.phase === 'error'
+          ? status.message || 'خطأ مزامنة'
+          : status.phase === 'ok'
+            ? `متزامن · ${formatTime(status.lastSavedAt)}`
+            : status.message || 'جاهز'
 
   return (
     <div className="fars-syncbar" role="status">
       <div className="fars-syncbar-user">
-        <strong>{session.username}</strong>
-        <span>
-          {status.cloud === 'saving'
-            ? 'جاري الحفظ…'
-            : status.cloud === 'ok'
-              ? `محفوظ · ${formatTime(status.lastSavedAt)}`
-              : status.cloudMessage || 'بانتظار الحفظ'}
+        <strong>{username}</strong>
+        <span className={status.online ? 'fars-dot-on' : 'fars-dot-off'}>
+          {status.online ? 'متصل' : 'غير متصل'}
         </span>
+        <span>{phaseLabel}</span>
       </div>
       <div className="fars-syncbar-actions">
-        <button type="button" onClick={() => void flushSync(true)}>
+        <button type="button" onClick={() => void flushSync()} disabled={!status.online}>
           مزامنة الآن
         </button>
-        <button type="button" onClick={() => void pickDiskFileForSave()}>
-          ربط ملف على القرص
-        </button>
-        <button type="button" onClick={exportBackupDownload}>
-          تنزيل نسخة
-        </button>
-        <button type="button" className="danger" onClick={logoutUser}>
+        <button type="button" className="danger" onClick={() => void logoutUser()}>
           خروج
         </button>
       </div>
@@ -71,38 +55,23 @@ export function SyncBar() {
 export function AuthGate({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false)
   const [authed, setAuthed] = useState(false)
-  const [mode, setMode] = useState<Mode>(() => (hasAnyLocalAccount() ? 'login' : 'register'))
+  const [mode, setMode] = useState<Mode>('register')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
-  const [remember, setRemember] = useState(true)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const configured = isSupabaseConfigured()
 
   useEffect(() => {
     void (async () => {
-      const session = await restoreSession()
-      if (session) {
-        try {
-          const remote = await pullCloud(session.username)
-          if (remote) {
-            const payload = await openEncryptedBlobWithKey(remote, session.key)
-            applyVaultPayload(payload)
-          }
-        } catch {
-          // استخدم النسخة المحلية إن فشلت السحابة
-        }
-        setAuthed(true)
-        startAutoSync()
+      try {
+        const session = await restoreAuthSession()
+        if (session) setAuthed(true)
+      } catch {
+        // لا جلسة
       }
       setReady(true)
     })()
-  }, [])
-
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      setAuthed(Boolean(getLiveSession()))
-    }, 800)
-    return () => window.clearInterval(id)
   }, [])
 
   const onSubmit = async (e: FormEvent) => {
@@ -110,46 +79,11 @@ export function AuthGate({ children }: { children: ReactNode }) {
     setError('')
     setBusy(true)
     try {
-      if (mode === 'register') {
-        await registerUser(username, password, remember)
-      } else {
-        // إن لم يوجد حساب محلي/سحابي يُنشأ تلقائياً عند أول دخول
-        await loginOrRegister(username, password, remember, true)
-      }
+      if (mode === 'register') await registerUser(username, password)
+      else await loginUser(username, password)
       setAuthed(true)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'فشل الدخول')
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const importFile = async (file: File) => {
-    setError('')
-    setBusy(true)
-    try {
-      if (!password) throw new Error('أدخل كلمة المرور لفتح النسخة المشفّرة')
-      const blob = await readDiskBackupFile(file)
-      await loginFromDiskBlob(blob, password, remember)
-      setAuthed(true)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'فشل استيراد الملف')
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const importViaPicker = async () => {
-    setError('')
-    setBusy(true)
-    try {
-      if (!password) throw new Error('أدخل كلمة المرور أولاً')
-      const blob = await pickDiskFileForOpen()
-      if (!blob) return
-      await loginFromDiskBlob(blob, password, remember)
-      setAuthed(true)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'فشل فتح الملف')
     } finally {
       setBusy(false)
     }
@@ -170,10 +104,14 @@ export function AuthGate({ children }: { children: ReactNode }) {
           <p className="fars-brand">فارس</p>
           <h1>{mode === 'login' ? 'تسجيل الدخول' : 'إنشاء حساب'}</h1>
           <p className="fars-auth-lead">
-            {mode === 'register'
-              ? 'أول مرة؟ أنشئ اسم مستخدم وكلمة مرور — البيانات تُحفظ تلقائياً على هذا الجهاز.'
-              : 'أدخل نفس اسم المستخدم وكلمة المرور. إن لم يكن الحساب موجوداً سيُنشأ تلقائياً.'}
+            قاعدة PostgreSQL (Supabase) · مزامنة فورية بين الأجهزة · يعمل بدون إنترنت بعد أول دخول
           </p>
+          {!configured ? (
+            <p className="fars-auth-error">
+              لم تُربط قاعدة البيانات بعد. أنشئ مشروع Supabase مجاني وأضف المفاتيح، أو نفّذ SQL من مجلد
+              supabase/schema.sql
+            </p>
+          ) : null}
           <form onSubmit={onSubmit} className="fars-auth-form">
             <label>
               اسم المستخدم
@@ -183,6 +121,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
                 onChange={(e) => setUsername(e.target.value)}
                 required
                 minLength={3}
+                disabled={!configured}
               />
             </label>
             <label>
@@ -194,14 +133,11 @@ export function AuthGate({ children }: { children: ReactNode }) {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={4}
+                disabled={!configured}
               />
             </label>
-            <label className="fars-check">
-              <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
-              تذكرني على هذا الجهاز
-            </label>
             {error ? <p className="fars-auth-error">{error}</p> : null}
-            <button type="submit" disabled={busy}>
+            <button type="submit" disabled={busy || !configured}>
               {busy ? '...' : mode === 'login' ? 'دخول' : 'إنشاء الحساب'}
             </button>
           </form>
@@ -217,23 +153,10 @@ export function AuthGate({ children }: { children: ReactNode }) {
             )}
           </div>
           <div className="fars-auth-disk">
-            <p>جهاز آخر بدون سحابة؟ استورد نسخة القرص المشفّرة بعد إدخال كلمة المرور:</p>
-            <div className="fars-auth-disk-actions">
-              <button type="button" onClick={() => void importViaPicker()} disabled={busy}>
-                اختيار ملف
-              </button>
-              <label className="fars-file-btn">
-                رفع ملف
-                <input
-                  type="file"
-                  accept="application/json,.json"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0]
-                    if (file) void importFile(file)
-                  }}
-                />
-              </label>
-            </div>
+            <p>
+              بعد أول دخول يبقى العمل شغّال بدون نت (حفظ محلي). عند عودة الاتصال تُزامَن كل الأجهزة
+              تلقائياً.
+            </p>
           </div>
         </div>
       </div>

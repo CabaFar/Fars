@@ -1,28 +1,27 @@
-import { APP_DATA_KEYS, DATA_CHANGED_EVENT, type VaultPayload } from './types'
+import { APP_DATA_KEYS, DATA_CHANGED_EVENT, type VaultKeys } from './types'
 
-export function collectVaultPayload(): VaultPayload {
-  const keys: Record<string, string> = {}
+export function collectVaultKeys(): VaultKeys {
+  const keys: VaultKeys = {}
   for (const key of APP_DATA_KEYS) {
     const value = localStorage.getItem(key)
     if (value != null) keys[key] = value
   }
-  return { v: 1, keys, updatedAt: Date.now() }
+  return keys
 }
 
-export function applyVaultPayload(payload: VaultPayload): void {
+export function applyVaultKeys(keys: VaultKeys, source = 'cloud'): void {
   for (const key of APP_DATA_KEYS) {
-    if (Object.prototype.hasOwnProperty.call(payload.keys, key)) {
-      localStorage.setItem(key, payload.keys[key]!)
+    if (Object.prototype.hasOwnProperty.call(keys, key)) {
+      localStorage.setItem(key, keys[key]!)
     }
   }
-  window.dispatchEvent(new CustomEvent(DATA_CHANGED_EVENT, { detail: { source: 'cloud' } }))
-}
-
-export function vaultFingerprint(payload: VaultPayload): string {
-  const ordered = APP_DATA_KEYS.map((k) => `${k}:${payload.keys[k] ?? ''}`).join('|')
-  return `${payload.updatedAt}:${ordered.length}:${ordered.slice(0, 200)}`
+  window.dispatchEvent(new CustomEvent(DATA_CHANGED_EVENT, { detail: { source } }))
 }
 
 export function notifyDataChanged(source = 'local'): void {
   window.dispatchEvent(new CustomEvent(DATA_CHANGED_EVENT, { detail: { source } }))
+}
+
+export function vaultFingerprint(keys: VaultKeys): string {
+  return APP_DATA_KEYS.map((k) => `${k}:${keys[k] ?? ''}`).join('|')
 }

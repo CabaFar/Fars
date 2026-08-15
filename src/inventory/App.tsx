@@ -1055,7 +1055,7 @@ function InventoryApp() {
         />
       )}
 
-      <footer className="inv-footer no-print">البيانات تُحفظ تلقائياً عبر حسابك (محلي + سحابة/قرص)</footer>
+      <footer className="inv-footer no-print">Offline-first · حفظ محلي + مزامنة Supabase</footer>
     </div>
   )
 }

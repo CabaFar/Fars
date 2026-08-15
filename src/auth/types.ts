@@ -1,42 +1,3 @@
-export type VaultPayload = {
-  v: 1
-  keys: Record<string, string>
-  updatedAt: number
-}
-
-export type EncryptedBlob = {
-  v: 1
-  username: string
-  salt: string
-  iv: string
-  ciphertext: string
-  updatedAt: number
-}
-
-export type LocalAccount = {
-  salt: string
-  hash: string
-  createdAt: number
-}
-
-export type AccountsFile = {
-  v: 1
-  users: Record<string, LocalAccount>
-}
-
-export type SessionInfo = {
-  username: string
-  remember: boolean
-}
-
-export type SyncStatus = {
-  local: boolean
-  cloud: 'idle' | 'saving' | 'ok' | 'error' | 'need-login'
-  cloudMessage: string
-  disk: 'idle' | 'ok' | 'error' | 'none'
-  lastSavedAt: number | null
-}
-
 export const APP_DATA_KEYS = [
   'shawarma-accounting-aug-2026-v1',
   'daily-cash-ledger-aug-2026-v1',
@@ -49,13 +10,33 @@ export const APP_DATA_KEYS = [
   'shawarma-hr-employees-v1',
 ] as const
 
-export const ACCOUNTS_KEY = 'fars-accounts-v1'
-export const SESSION_KEY = 'fars-session-v1'
-export const REMEMBER_KEY = 'fars-remember-v1'
-export const KEY_MATERIAL_KEY = 'fars-key-jwk-v1'
-export const DISK_HANDLE_KEY = 'fars-disk-handle-v1'
 export const DATA_CHANGED_EVENT = 'fars-data-changed'
+export const SYNC_META_KEY = 'fars-sync-meta-v1'
+export const USERNAME_KEY = 'fars-username-v1'
 
-/** kvdb.io bucket — يفعّل بعد تأكيد البريد */
-export const KVDB_BUCKET = 'FayQZZ7D2QvdqoEDaRWsXi'
-export const PUTER_KEY_PREFIX = 'fars-vault:'
+export type VaultKeys = Record<string, string>
+
+export type SyncMeta = {
+  localUpdatedAt: number
+  remoteUpdatedAt: number
+  remoteRevision: number
+  pendingPush: boolean
+  lastPushAt: number | null
+  lastPullAt: number | null
+  lastError: string | null
+}
+
+export type SyncStatus = {
+  online: boolean
+  phase: 'idle' | 'syncing' | 'offline' | 'error' | 'ok'
+  message: string
+  username: string | null
+  lastSavedAt: number | null
+}
+
+export type WorkspaceRow = {
+  user_id: string
+  keys: VaultKeys
+  updated_at: string
+  revision: number
+}
