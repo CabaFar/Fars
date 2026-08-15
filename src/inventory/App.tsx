@@ -1055,7 +1055,7 @@ function InventoryApp() {
         />
       )}
 
-      <footer className="inv-footer no-print">البيانات تُحفظ على هذا الجهاز</footer>
+      <footer className="inv-footer no-print">البيانات تُحفظ تلقائياً عبر حسابك (محلي + سحابة/قرص)</footer>
     </div>
   )
 }
