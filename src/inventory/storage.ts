@@ -1,3 +1,4 @@
+import { notifyDataChanged } from '../auth/vault'
 import type { CategoryId, ExtraItem } from './catalog'
 import type { InventoryData, PriceList, UnitOverrides } from './types'
 import { emptyInventoryData, emptyPriceList } from './types'
@@ -28,6 +29,7 @@ export function loadInventory(): InventoryData {
 
 export function saveInventory(data: InventoryData): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+  notifyDataChanged()
 }
 
 export function loadPrices(): PriceList {
@@ -46,6 +48,7 @@ export function loadPrices(): PriceList {
 
 export function savePrices(prices: PriceList): void {
   localStorage.setItem(PRICE_KEY, JSON.stringify(prices))
+  notifyDataChanged()
 }
 
 export function loadExtras(): ExtraItem[] {
@@ -61,6 +64,7 @@ export function loadExtras(): ExtraItem[] {
 
 export function saveExtras(items: ExtraItem[]): void {
   localStorage.setItem(EXTRA_KEY, JSON.stringify(items))
+  notifyDataChanged()
 }
 
 export function loadUnitOverrides(): UnitOverrides {
@@ -76,6 +80,7 @@ export function loadUnitOverrides(): UnitOverrides {
 
 export function saveUnitOverrides(units: UnitOverrides): void {
   localStorage.setItem(UNITS_KEY, JSON.stringify(units))
+  notifyDataChanged()
 }
 
 export function loadRemovedIds(): string[] {
@@ -91,6 +96,7 @@ export function loadRemovedIds(): string[] {
 
 export function saveRemovedIds(ids: string[]): void {
   localStorage.setItem(REMOVED_KEY, JSON.stringify(ids))
+  notifyDataChanged()
 }
 
 export function loadMetaOverrides(): ItemMetaOverrides {
@@ -106,6 +112,7 @@ export function loadMetaOverrides(): ItemMetaOverrides {
 
 export function saveMetaOverrides(meta: ItemMetaOverrides): void {
   localStorage.setItem(META_KEY, JSON.stringify(meta))
+  notifyDataChanged()
 }
 
 export type BackupPayload = {

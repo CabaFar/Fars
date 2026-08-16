@@ -194,6 +194,8 @@ export function resolveItemDay(
   key: string,
   itemId: string,
 ): ItemDay {
+  // الموجود الآن = آخر جرد مساء سابق دائماً (ترحيل تلقائي لليوم الجديد)
+  const carriedOpening = lastCountedClosing(data, branch, key, itemId)
   const existing = data[branch][key]?.[itemId]
   if (existing) {
     const unitPrice =
@@ -202,13 +204,40 @@ export function resolveItemDay(
         ? existing.purchaseCost / existing.purchaseQty
         : 0)
     return {
-      ...emptyItemDay(),
+      ...emptyItemDay(carriedOpening),
       ...existing,
+      openingQty: carriedOpening,
       unitPrice,
       supplier: existing.supplier ?? '',
     }
   }
-  return emptyItemDay(lastCountedClosing(data, branch, key, itemId))
+  return emptyItemDay(carriedOpening)
+}
+
+/** يحدّث «الموجود الآن» لليوم التالي بعد اعتماد جرد المساء */
+export function applyClosingToNextDay(
+  data: InventoryData,
+  branch: BranchId,
+  currentKey: string,
+  itemId: string,
+  closingQty: number,
+): InventoryData {
+  const nextKey = toDateKey(addDays(parseDateKey(currentKey), 1))
+  const existingNext = data[branch][nextKey]?.[itemId]
+  const nextRec: ItemDay = {
+    ...(existingNext ? { ...emptyItemDay(), ...existingNext } : emptyItemDay(closingQty)),
+    openingQty: closingQty,
+  }
+  return {
+    ...data,
+    [branch]: {
+      ...data[branch],
+      [nextKey]: {
+        ...data[branch][nextKey],
+        [itemId]: nextRec,
+      },
+    },
+  }
 }
 
 export function dayHasActivity(record: DayRecord | undefined): boolean {
