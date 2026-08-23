@@ -53,10 +53,29 @@ function HrApp() {
     return counts
   }, [employees])
 
-  const payrollTotal = useMemo(
-    () => employees.reduce((sum, emp) => sum + netSalary(emp), 0),
-    [employees],
-  )
+  const payrollByMethod = useMemo(() => {
+    let cash = 0
+    let transfer = 0
+    let cashCount = 0
+    let transferCount = 0
+    for (const emp of employees) {
+      const net = netSalary(emp)
+      if (emp.paymentMethod === 'transfer') {
+        transfer += net
+        transferCount += 1
+      } else {
+        cash += net
+        cashCount += 1
+      }
+    }
+    return {
+      cash,
+      transfer,
+      cashCount,
+      transferCount,
+      total: cash + transfer,
+    }
+  }, [employees])
 
   const openAdd = () => setEditing(emptyEmployee())
 
@@ -146,7 +165,7 @@ function HrApp() {
         </article>
         <article>
           <span>إجمالي صافي الرواتب</span>
-          <strong>{formatMoney(payrollTotal)} ر.س</strong>
+          <strong>{formatMoney(payrollByMethod.total)} ر.س</strong>
         </article>
         <article className={alertCounts.warn ? 'warn' : ''}>
           <span>تنبيه أقل من 60 يوم</span>
@@ -159,6 +178,23 @@ function HrApp() {
         <article className={alertCounts.expired ? 'expired' : ''}>
           <span>وثائق منتهية</span>
           <strong>{alertCounts.expired}</strong>
+        </article>
+      </section>
+
+      <section className="hr-payroll-split" aria-label="صافي الرواتب حسب طريقة الصرف">
+        <article className="payroll-cash">
+          <div>
+            <span>صافي رواتب الكاش</span>
+            <small>{payrollByMethod.cashCount} موظف</small>
+          </div>
+          <strong>{formatMoney(payrollByMethod.cash)} ر.س</strong>
+        </article>
+        <article className="payroll-transfer">
+          <div>
+            <span>صافي رواتب التحويل</span>
+            <small>{payrollByMethod.transferCount} موظف</small>
+          </div>
+          <strong>{formatMoney(payrollByMethod.transfer)} ر.س</strong>
         </article>
       </section>
 
@@ -178,7 +214,10 @@ function HrApp() {
       <section className="hr-sheet">
         <div className="hr-sheet-head">
           <h2>سجل الموظفين</h2>
-          <p>صافي الراتب = الراتب − الخصومات − السلف · الألوان تنبّه قبل انتهاء الوثائق</p>
+          <p>
+            صافي الراتب = الراتب − الخصومات − السلف · يُفصل إجمالي الكاش عن التحويل أعلاه · الألوان
+            تنبّه قبل انتهاء الوثائق
+          </p>
         </div>
         <div className="hr-table-wrap">
           <table className="hr-table">
