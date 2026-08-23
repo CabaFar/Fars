@@ -29,6 +29,7 @@ import {
 import {
   ARABIC_DAYS,
   BRANCHES,
+  applyClosingToNextDay,
   consumedCost,
   consumedQty,
   dateKeyFromParts,
@@ -109,16 +110,25 @@ function InventoryApp() {
   const patchItem = (itemId: string, patch: Partial<ItemDay>) => {
     setData((prev) => {
       const current = resolveItemDay(prev, branch, key, itemId)
-      return {
+      const merged = { ...current, ...patch }
+      // لا تُحفظ تعديلات يدوية على الموجود الآن — يُرحَّل من جرد أمس
+      if ('openingQty' in patch) {
+        merged.openingQty = current.openingQty
+      }
+      let next: InventoryData = {
         ...prev,
         [branch]: {
           ...prev[branch],
           [key]: {
             ...prev[branch][key],
-            [itemId]: { ...current, ...patch },
+            [itemId]: merged,
           },
         },
       }
+      if (merged.counted) {
+        next = applyClosingToNextDay(next, branch, key, itemId, merged.closingQty)
+      }
+      return next
     })
   }
 
@@ -321,19 +331,23 @@ function InventoryApp() {
 
   const countAllExpected = () => {
     setData((prev) => {
-      const nextDay = { ...prev[branch][key] }
+      let next: InventoryData = prev
+      const nextDay = { ...(next[branch][key] ?? {}) }
       for (const item of visibleItems) {
-        const current = resolveItemDay(prev, branch, key, item.id)
+        const current = resolveItemDay(next, branch, key, item.id)
+        const closingQty = expectedQty(current)
         nextDay[item.id] = {
           ...current,
-          closingQty: expectedQty(current),
+          closingQty,
           counted: true,
         }
+        next = {
+          ...next,
+          [branch]: { ...next[branch], [key]: nextDay },
+        }
+        next = applyClosingToNextDay(next, branch, key, item.id, closingQty)
       }
-      return {
-        ...prev,
-        [branch]: { ...prev[branch], [key]: nextDay },
-      }
+      return next
     })
   }
 
@@ -624,8 +638,8 @@ function InventoryApp() {
           <div className="inv-sheet-head">
             <h3>إدخال مشتريات بداية اليوم</h3>
             <p>
-              الموجود الآن = الكمية الحالية · الجديد = كمية المشترى · السعر = سعر الوحدة بالريال ·
-              المورد = اسم المورد
+              الموجود الآن = جرد مساء أمس (ترحيل تلقائي) · الجديد = كمية المشترى · السعر = سعر
+              الوحدة بالريال · المورد = اسم المورد
             </p>
           </div>
           {grouped.map(({ cat, items }) => (
@@ -674,11 +688,9 @@ function InventoryApp() {
                             <UnitSelect value={item.unit} onChange={(unit) => setItemUnit(item.id, unit)} />
                           </td>
                           <td>
-                            <NumInput
-                              step={item.step}
-                              value={rec.openingQty}
-                              onChange={(value) => patchItem(item.id, { openingQty: value })}
-                            />
+                            <span className="inv-readonly-qty" title="يُرحَّل تلقائياً من جرد مساء أمس">
+                              {formatQty(rec.openingQty, item.unit)}
+                            </span>
                           </td>
                           <td>
                             <NumInput
@@ -966,7 +978,7 @@ function InventoryApp() {
             <h4>معنى الخانات</h4>
             <ol>
               <li>
-                <b>الموجود الآن:</b> الكمية الحالية أول اليوم (من جرد أمس).
+                <b>الموجود الآن:</b> يُرحَّل تلقائياً من جرد مساء اليوم السابق.
               </li>
               <li>
                 <b>الجديد:</b> كمية المشترى اليوم، و<b>السعر</b> سعر الوحدة بالريال (منفصل عن الكمية).
@@ -1055,7 +1067,7 @@ function InventoryApp() {
         />
       )}
 
-      <footer className="inv-footer no-print">البيانات تُحفظ على هذا الجهاز</footer>
+      <footer className="inv-footer no-print">Offline-first · حفظ محلي + مزامنة Supabase</footer>
     </div>
   )
 }

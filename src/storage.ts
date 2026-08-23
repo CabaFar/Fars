@@ -1,3 +1,4 @@
+import { notifyDataChanged } from './auth/vault'
 import type { AppData } from './types'
 import { emptyAppData } from './types'
 
@@ -19,4 +20,5 @@ export function loadData(): AppData {
 
 export function saveData(data: AppData): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+  notifyDataChanged()
 }
