@@ -72,6 +72,13 @@ export function netSalaryTotal(employees: Pick<Employee, 'salary' | 'deductions'
   return employees.reduce((sum, emp) => sum + netSalary(emp), 0)
 }
 
+export function byPaymentMethod(
+  employees: Employee[],
+  method: SalaryPaymentMethod,
+): Employee[] {
+  return employees.filter((emp) => (emp.paymentMethod ?? 'cash') === method)
+}
+
 export function pad2(n: number): string {
   return String(n).padStart(2, '0')
 }

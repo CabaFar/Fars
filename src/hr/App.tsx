@@ -11,6 +11,7 @@ import {
   DOC_FIELDS,
   PAYMENT_METHODS,
   advancesTotal,
+  byPaymentMethod,
   deductionsTotal,
   emptyEmployee,
   expiryInfo,
@@ -96,6 +97,12 @@ function HrApp() {
   const deductTotal = useMemo(() => deductionsTotal(employees), [employees])
   const advanceTotal = useMemo(() => advancesTotal(employees), [employees])
   const payrollNet = useMemo(() => netSalaryTotal(employees), [employees])
+  const cashEmployees = useMemo(() => byPaymentMethod(employees, 'cash'), [employees])
+  const transferEmployees = useMemo(() => byPaymentMethod(employees, 'transfer'), [employees])
+  const cashGross = useMemo(() => grossSalaryTotal(cashEmployees), [cashEmployees])
+  const cashNet = useMemo(() => netSalaryTotal(cashEmployees), [cashEmployees])
+  const transferGross = useMemo(() => grossSalaryTotal(transferEmployees), [transferEmployees])
+  const transferNet = useMemo(() => netSalaryTotal(transferEmployees), [transferEmployees])
 
   const goMonth = (delta: number) => {
     const next = shiftMonth(year, month, delta)
@@ -197,6 +204,37 @@ function HrApp() {
         <button type="button" className="ghost" onClick={goToday}>
           هذا الشهر
         </button>
+      </section>
+
+      <section className="hr-pay-split" aria-label="إجمالي الرواتب حسب طريقة الصرف">
+        <article className="pay-cash-card">
+          <h3>رواتب الكاش</h3>
+          <p>{cashEmployees.length} موظف</p>
+          <dl>
+            <div>
+              <dt>كامل</dt>
+              <dd>{formatMoney(cashGross)} ر.س</dd>
+            </div>
+            <div>
+              <dt>صافي</dt>
+              <dd>{formatMoney(cashNet)} ر.س</dd>
+            </div>
+          </dl>
+        </article>
+        <article className="pay-transfer-card">
+          <h3>رواتب التحويل</h3>
+          <p>{transferEmployees.length} موظف</p>
+          <dl>
+            <div>
+              <dt>كامل</dt>
+              <dd>{formatMoney(transferGross)} ر.س</dd>
+            </div>
+            <div>
+              <dt>صافي</dt>
+              <dd>{formatMoney(transferNet)} ر.س</dd>
+            </div>
+          </dl>
+        </article>
       </section>
 
       <section className="hr-legend" aria-label="مفتاح ألوان التنبيه">
