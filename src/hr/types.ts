@@ -56,6 +56,50 @@ export function netSalary(employee: Pick<Employee, 'salary' | 'deductions' | 'ad
   return Math.round((employee.salary - employee.deductions - employee.advances) * 100) / 100
 }
 
+export function grossSalaryTotal(employees: Pick<Employee, 'salary'>[]): number {
+  return employees.reduce((sum, emp) => sum + (emp.salary || 0), 0)
+}
+
+export function deductionsTotal(employees: Pick<Employee, 'deductions'>[]): number {
+  return employees.reduce((sum, emp) => sum + (emp.deductions || 0), 0)
+}
+
+export function advancesTotal(employees: Pick<Employee, 'advances'>[]): number {
+  return employees.reduce((sum, emp) => sum + (emp.advances || 0), 0)
+}
+
+export function netSalaryTotal(employees: Pick<Employee, 'salary' | 'deductions' | 'advances'>[]): number {
+  return employees.reduce((sum, emp) => sum + netSalary(emp), 0)
+}
+
+export function pad2(n: number): string {
+  return String(n).padStart(2, '0')
+}
+
+export function monthKey(year: number, month: number): string {
+  return `${year}-${pad2(month + 1)}`
+}
+
+export function shiftMonth(year: number, month: number, delta: number): { year: number; month: number } {
+  const next = new Date(year, month + delta, 1)
+  return { year: next.getFullYear(), month: next.getMonth() }
+}
+
+export function monthLabel(year: number, month: number): string {
+  return new Intl.DateTimeFormat('ar-SA', { month: 'long', year: 'numeric' }).format(
+    new Date(year, month, 1),
+  )
+}
+
+export function cloneForNewMonth(employees: Employee[]): Employee[] {
+  return employees.map((emp) => ({
+    ...emp,
+    deductions: 0,
+    deductionNote: '',
+    advances: 0,
+  }))
+}
+
 export function formatMoney(value: number): string {
   return new Intl.NumberFormat('ar-SA', {
     minimumFractionDigits: 0,

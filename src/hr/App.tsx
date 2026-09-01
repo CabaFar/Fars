@@ -1,15 +1,29 @@
 import { useEffect, useMemo, useState } from 'react'
-import { loadEmployees, saveEmployees } from './storage'
+import {
+  employeesForMonth,
+  ensureMonth,
+  loadStore,
+  saveStore,
+  setMonthEmployees,
+  type HrStore,
+} from './storage'
 import {
   DOC_FIELDS,
   PAYMENT_METHODS,
+  advancesTotal,
+  deductionsTotal,
   emptyEmployee,
   expiryInfo,
   formatDateAr,
   formatMoney,
+  grossSalaryTotal,
+  monthKey,
+  monthLabel,
   netSalary,
+  netSalaryTotal,
   parseNum,
   paymentMethodLabel,
+  shiftMonth,
   type DocKey,
   type Employee,
   type ExpiryTone,
@@ -18,25 +32,50 @@ import {
 
 type FormState = Omit<Employee, 'id'> & { id?: string }
 
+function todayParts() {
+  const d = new Date()
+  return { year: d.getFullYear(), month: d.getMonth() }
+}
+
 function HrApp() {
-  const [employees, setEmployees] = useState<Employee[]>(() => loadEmployees())
+  const now = todayParts()
+  const [store, setStore] = useState<HrStore>(() => {
+    const t = todayParts()
+    return ensureMonth(loadStore(), monthKey(t.year, t.month))
+  })
+  const [year, setYear] = useState(now.year)
+  const [month, setMonth] = useState(now.month)
   const [query, setQuery] = useState('')
   const [editing, setEditing] = useState<FormState | null>(null)
   const [savedFlash, setSavedFlash] = useState(false)
 
+  const key = monthKey(year, month)
+  const viewStore = store.months[key] ? store : ensureMonth(store, key)
+  const employees = employeesForMonth(viewStore, key)
+
   useEffect(() => {
-    saveEmployees(employees)
+    saveStore(store)
     setSavedFlash(true)
     const t = window.setTimeout(() => setSavedFlash(false), 1200)
     return () => window.clearTimeout(t)
-  }, [employees])
+  }, [store])
+
+  useEffect(() => {
+    setStore((prev) => ensureMonth(prev, key))
+  }, [key])
+
+  const setEmployees = (updater: Employee[] | ((prev: Employee[]) => Employee[])) => {
+    setStore((prev) => {
+      const current = employeesForMonth(ensureMonth(prev, key), key)
+      const next = typeof updater === 'function' ? updater(current) : updater
+      return setMonthEmployees(prev, key, next)
+    })
+  }
 
   const visible = useMemo(() => {
     const q = query.trim()
     if (!q) return employees
-    return employees.filter(
-      (emp) => emp.name.includes(q) || emp.jobTitle.includes(q),
-    )
+    return employees.filter((emp) => emp.name.includes(q) || emp.jobTitle.includes(q))
   }, [employees, query])
 
   const alertCounts = useMemo(() => {
@@ -53,10 +92,22 @@ function HrApp() {
     return counts
   }, [employees])
 
-  const payrollTotal = useMemo(
-    () => employees.reduce((sum, emp) => sum + netSalary(emp), 0),
-    [employees],
-  )
+  const grossTotal = useMemo(() => grossSalaryTotal(employees), [employees])
+  const deductTotal = useMemo(() => deductionsTotal(employees), [employees])
+  const advanceTotal = useMemo(() => advancesTotal(employees), [employees])
+  const payrollNet = useMemo(() => netSalaryTotal(employees), [employees])
+
+  const goMonth = (delta: number) => {
+    const next = shiftMonth(year, month, delta)
+    setYear(next.year)
+    setMonth(next.month)
+  }
+
+  const goToday = () => {
+    const t = todayParts()
+    setYear(t.year)
+    setMonth(t.month)
+  }
 
   const openAdd = () => setEditing(emptyEmployee())
 
@@ -116,7 +167,7 @@ function HrApp() {
           <span className="hr-mark" aria-hidden />
           <div>
             <h1>الموارد البشرية</h1>
-            <p>بيانات الموظفين · الرواتب · تنبيهات الوثائق</p>
+            <p>إجمالي الرواتب بدون الخصومات والسلف · سجل شهري محفوظ</p>
           </div>
         </div>
         <nav className="hr-links" aria-label="صفحات النظام">
@@ -132,6 +183,22 @@ function HrApp() {
         </div>
       </header>
 
+      <section className="hr-month" aria-label="الشهر">
+        <button type="button" onClick={() => goMonth(-1)} aria-label="الشهر السابق">
+          ›
+        </button>
+        <div>
+          <h2>{monthLabel(year, month)}</h2>
+          <p>كل شهر له سجل رواتب وخصومات وسلف مستقل، والموظفون يُنقلون تلقائياً للشهر الجديد</p>
+        </div>
+        <button type="button" onClick={() => goMonth(1)} aria-label="الشهر التالي">
+          ‹
+        </button>
+        <button type="button" className="ghost" onClick={goToday}>
+          هذا الشهر
+        </button>
+      </section>
+
       <section className="hr-legend" aria-label="مفتاح ألوان التنبيه">
         <span className="tone ok">أخضر: أكثر من 60 يوم</span>
         <span className="tone warn">أصفر: أقل من 60 يوم</span>
@@ -144,9 +211,22 @@ function HrApp() {
           <span>عدد الموظفين</span>
           <strong>{employees.length}</strong>
         </article>
+        <article className="accent">
+          <span>إجمالي الرواتب</span>
+          <strong>{formatMoney(grossTotal)} ر.س</strong>
+          <small>بدون الخصومات والسلف</small>
+        </article>
         <article>
-          <span>إجمالي صافي الرواتب</span>
-          <strong>{formatMoney(payrollTotal)} ر.س</strong>
+          <span>إجمالي الخصومات</span>
+          <strong>{formatMoney(deductTotal)} ر.س</strong>
+        </article>
+        <article>
+          <span>إجمالي السلف</span>
+          <strong>{formatMoney(advanceTotal)} ر.س</strong>
+        </article>
+        <article>
+          <span>صافي الرواتب</span>
+          <strong>{formatMoney(payrollNet)} ر.س</strong>
         </article>
         <article className={alertCounts.warn ? 'warn' : ''}>
           <span>تنبيه أقل من 60 يوم</span>
@@ -177,8 +257,11 @@ function HrApp() {
 
       <section className="hr-sheet">
         <div className="hr-sheet-head">
-          <h2>سجل الموظفين</h2>
-          <p>صافي الراتب = الراتب − الخصومات − السلف · الألوان تنبّه قبل انتهاء الوثائق</p>
+          <h2>سجل الموظفين — {monthLabel(year, month)}</h2>
+          <p>
+            إجمالي الرواتب = مجموع الراتب الأساسي بدون خصم ولا سلف · صافي الراتب = الراتب − الخصومات −
+            السلف
+          </p>
         </div>
         <div className="hr-table-wrap">
           <table className="hr-table">
@@ -239,6 +322,20 @@ function HrApp() {
                 </tr>
               ))}
             </tbody>
+            {visible.length > 0 && (
+              <tfoot>
+                <tr>
+                  <td colSpan={2}>المجموع</td>
+                  <td>{formatMoney(grossSalaryTotal(visible))} ر.س</td>
+                  <td />
+                  <td>{formatMoney(deductionsTotal(visible))} ر.س</td>
+                  <td />
+                  <td>{formatMoney(advancesTotal(visible))} ر.س</td>
+                  <td>{formatMoney(netSalaryTotal(visible))} ر.س</td>
+                  <td colSpan={4} />
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
         {visible.length === 0 && (

@@ -182,9 +182,52 @@ input {
   color: var(--muted);
 }
 
+.hr-month {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--red);
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, #fff 0%, var(--red-soft) 100%);
+  box-shadow: var(--shadow);
+}
+
+.hr-month h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  color: var(--red-dark);
+  min-width: 9rem;
+  text-align: center;
+}
+
+.hr-month p {
+  margin: 0.15rem 0 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.hr-month button {
+  appearance: none;
+  border: 1px solid var(--red-line);
+  background: #fff;
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 0.5rem 0.95rem;
+  cursor: pointer;
+  font: inherit;
+}
+
+.hr-month .ghost {
+  background: #fff;
+  color: var(--red-dark);
+}
+
 .hr-kpis {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.75rem;
   margin-bottom: 1rem;
 }
@@ -210,6 +253,18 @@ input {
 .hr-kpis article.expired {
   background: var(--expired-soft);
   border-color: var(--red);
+}
+
+.hr-kpis article.accent {
+  background: var(--red-soft);
+  border-color: var(--red);
+}
+
+.hr-kpis small {
+  display: block;
+  color: var(--muted);
+  font-size: 0.78rem;
+  margin-top: 0.15rem;
 }
 
 .hr-kpis span {
@@ -301,12 +356,11 @@ input {
   vertical-align: top;
 }
 
-.hr-table th {
+.hr-table tfoot td {
   background: var(--red-soft);
-  color: var(--muted);
-  font-weight: 600;
-  position: sticky;
-  top: 0;
+  font-weight: 700;
+  font-family: var(--font-display);
+  border-bottom: none;
 }
 
 .expiry-badge {
