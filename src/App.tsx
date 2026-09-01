@@ -5,9 +5,7 @@ import {
   CARD_FIELDS,
   CASH_FIELD,
   EXPENSE_FIELDS,
-  MONTH,
   RECORDED_SALES_FIELDS,
-  YEAR,
   calcBranchTotals,
   cardsTotal,
   collectionTotal,
@@ -16,7 +14,9 @@ import {
   emptyExpenses,
   emptySales,
   formatMoney,
+  monthLabel,
   recordedSalesTotal,
+  shiftMonth,
   sumExpenseDay,
   sumSalesDay,
   surplusDeficit,
@@ -29,16 +29,27 @@ import { loadData, saveData } from './storage'
 
 type Tab = 'sales' | 'expenses' | 'summary'
 
+function todayParts() {
+  const d = new Date()
+  return { year: d.getFullYear(), month: d.getMonth(), day: d.getDate() }
+}
+
 function App() {
+  const now = todayParts()
   const [data, setData] = useState<AppData>(() => loadData())
   const [branch, setBranch] = useState<BranchId>('wasita')
   const [tab, setTab] = useState<Tab>('sales')
-  const [selectedDay, setSelectedDay] = useState(1)
+  const [year, setYear] = useState(now.year)
+  const [month, setMonth] = useState(now.month)
+  const [selectedDay, setSelectedDay] = useState(
+    Math.min(now.day, daysInMonth(now.year, now.month)),
+  )
   const [savedFlash, setSavedFlash] = useState(false)
 
-  const totalDays = daysInMonth(YEAR, MONTH)
-  const key = dateKey(selectedDay)
-  const weekday = ARABIC_DAYS[new Date(YEAR, MONTH, selectedDay).getDay()]
+  const totalDays = daysInMonth(year, month)
+  const key = dateKey(year, month, selectedDay)
+  const weekday = ARABIC_DAYS[new Date(year, month, selectedDay).getDay()]
+  const currentMonthLabel = monthLabel(year, month)
   const branchData = data[branch]
   const sales = branchData.sales[key] ?? emptySales()
   const expenses = branchData.expenses[key] ?? emptyExpenses()
@@ -49,6 +60,24 @@ function App() {
     const t = window.setTimeout(() => setSavedFlash(false), 1200)
     return () => window.clearTimeout(t)
   }, [data])
+
+  useEffect(() => {
+    const max = daysInMonth(year, month)
+    if (selectedDay > max) setSelectedDay(max)
+  }, [year, month, selectedDay])
+
+  const goMonth = (delta: number) => {
+    const next = shiftMonth(year, month, delta)
+    setYear(next.year)
+    setMonth(next.month)
+  }
+
+  const goThisMonth = () => {
+    const t = todayParts()
+    setYear(t.year)
+    setMonth(t.month)
+    setSelectedDay(t.day)
+  }
 
   const updateSales = (field: SalesKey, value: number) => {
     setData((prev) => ({
@@ -87,8 +116,8 @@ function App() {
     return Number.isFinite(n) ? n : 0
   }
 
-  const wasitaTotals = calcBranchTotals(data.wasita)
-  const beirutTotals = calcBranchTotals(data.beirut)
+  const wasitaTotals = calcBranchTotals(data.wasita, year, month)
+  const beirutTotals = calcBranchTotals(data.beirut, year, month)
   const grand = {
     totalSales: wasitaTotals.totalSales + beirutTotals.totalSales,
     totalRecorded: wasitaTotals.totalRecorded + beirutTotals.totalRecorded,
@@ -107,7 +136,7 @@ function App() {
   const dayExpenseTotal = sumExpenseDay(expenses)
 
   const hasDayData = (day: number) => {
-    const k = dateKey(day)
+    const k = dateKey(year, month, day)
     const s = branchData.sales[k]
     const e = branchData.expenses[k]
     const salesFilled = s && Object.values(s).some((v) => v !== 0)
@@ -125,7 +154,7 @@ function App() {
           <span className="brand-mark" aria-hidden />
           <div>
             <h1>شاورما — المحاسبة</h1>
-            <p>أغسطس {YEAR} · من 1 السبت حتى 31</p>
+            <p>فرع الوسيطاء وفرع بيروت</p>
           </div>
         </div>
         <nav className="site-nav" aria-label="صفحات النظام">
@@ -140,6 +169,22 @@ function App() {
           {savedFlash ? 'تم الحفظ تلقائياً' : 'الحفظ تلقائي'}
         </div>
       </header>
+
+      <section className="acct-month" aria-label="الشهر">
+        <button type="button" onClick={() => goMonth(-1)} aria-label="الشهر السابق">
+          ›
+        </button>
+        <div>
+          <h2>{currentMonthLabel}</h2>
+          <p>كل شهر له مبيعات ومصروفات مستقلة</p>
+        </div>
+        <button type="button" onClick={() => goMonth(1)} aria-label="الشهر التالي">
+          ‹
+        </button>
+        <button type="button" className="ghost" onClick={goThisMonth}>
+          هذا الشهر
+        </button>
+      </section>
 
       <section className="kpi-row" aria-label="ملخص سريع">
         <article className="kpi">
@@ -214,33 +259,37 @@ function App() {
         <div className="day-panel">
           <div className="day-head">
             <h2>
-              يوم {selectedDay} أغسطس — {weekday}
+              يوم {selectedDay} — {weekday} · {currentMonthLabel}
             </h2>
             <p>
               {tab === 'sales'
-                ? `إجمالي التحصيل (كاش + بطاقات): ${formatMoney(dayCollection)}`
+                ? `إجمالي التحصيل (كاش + البطاقات): ${formatMoney(dayCollection)}`
                 : `إجمالي مصروفات اليوم: ${formatMoney(dayExpenseTotal)}`}
             </p>
           </div>
-          <div className="day-grid" role="listbox" aria-label="أيام أغسطس">
-            {Array.from({ length: totalDays }, (_, i) => i + 1).map((day) => (
-              <button
-                key={day}
-                type="button"
-                role="option"
-                aria-selected={selectedDay === day}
-                className={[
-                  'day-btn',
-                  selectedDay === day ? 'selected' : '',
-                  hasDayData(day) ? 'filled' : '',
-                ]
-                  .filter(Boolean)
-                  .join(' ')}
-                onClick={() => setSelectedDay(day)}
-              >
-                {day}
-              </button>
-            ))}
+          <div className="day-grid" role="listbox" aria-label="أيام الشهر">
+            {Array.from({ length: totalDays }, (_, i) => i + 1).map((day) => {
+              const isToday = day === now.day && month === now.month && year === now.year
+              return (
+                <button
+                  key={day}
+                  type="button"
+                  role="option"
+                  aria-selected={selectedDay === day}
+                  className={[
+                    'day-btn',
+                    selectedDay === day ? 'selected' : '',
+                    hasDayData(day) ? 'filled' : '',
+                    isToday ? 'today' : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                  onClick={() => setSelectedDay(day)}
+                >
+                  {day}
+                </button>
+              )
+            })}
           </div>
         </div>
       )}
@@ -377,7 +426,7 @@ function App() {
 
       {tab === 'summary' && (
         <section className="summary-section">
-          <h3>التقرير الشهري — أغسطس {YEAR}</h3>
+          <h3>التقرير الشهري — {currentMonthLabel}</h3>
 
           <div className="summary-grid">
             <article className="summary-card">
@@ -515,13 +564,13 @@ function App() {
               </thead>
               <tbody>
                 {Array.from({ length: totalDays }, (_, i) => i + 1).map((day) => {
-                  const k = dateKey(day)
+                  const k = dateKey(year, month, day)
                   const collected = sumSalesDay(branchData.sales[k])
                   const recorded = recordedSalesTotal(branchData.sales[k])
                   const variance = surplusDeficit(branchData.sales[k])
                   const e = sumExpenseDay(branchData.expenses[k])
                   const net = collected - e
-                  const wd = ARABIC_DAYS[new Date(YEAR, MONTH, day).getDay()]
+                  const wd = ARABIC_DAYS[new Date(year, month, day).getDay()]
                   return (
                     <tr key={day}>
                       <td>{day}</td>
@@ -565,7 +614,7 @@ function App() {
       )}
 
       <footer className="footer">
-        البيانات تُحفظ على هذا الجهاز · أغسطس {YEAR}
+        البيانات تُحفظ على هذا الجهاز · {currentMonthLabel}
       </footer>
     </div>
   )

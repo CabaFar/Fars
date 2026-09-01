@@ -5,9 +5,6 @@ export const BRANCHES: { id: BranchId; name: string }[] = [
   { id: 'beirut', name: 'فرع بيروت' },
 ]
 
-export const YEAR = 2026
-export const MONTH = 7 // August (0-indexed)
-
 export const CASH_FIELD = { key: 'cash', label: 'الكاش' } as const
 
 export const CARD_FIELDS = [
@@ -152,12 +149,27 @@ export function surplusDeficit(day: SalesDay | undefined): number {
   return Math.round((collectionTotal(day) - recordedSalesTotal(day)) * 100) / 100
 }
 
+export function pad2(n: number): string {
+  return String(n).padStart(2, '0')
+}
+
 export function daysInMonth(year: number, month: number): number {
   return new Date(year, month + 1, 0).getDate()
 }
 
-export function dateKey(day: number): string {
-  return `${YEAR}-${String(MONTH + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+export function dateKey(year: number, month: number, day: number): string {
+  return `${year}-${pad2(month + 1)}-${pad2(day)}`
+}
+
+export function shiftMonth(year: number, month: number, delta: number): { year: number; month: number } {
+  const next = new Date(year, month + delta, 1)
+  return { year: next.getFullYear(), month: next.getMonth() }
+}
+
+export function monthLabel(year: number, month: number): string {
+  return new Intl.DateTimeFormat('ar-SA', { month: 'long', year: 'numeric' }).format(
+    new Date(year, month, 1),
+  )
 }
 
 export function formatMoney(value: number): string {
@@ -176,8 +188,8 @@ export function sumExpenseDay(day: ExpenseDay | undefined): number {
   return EXPENSE_FIELDS.reduce((acc, f) => acc + (day[f.key] || 0), 0)
 }
 
-export function calcBranchTotals(data: BranchData) {
-  const days = daysInMonth(YEAR, MONTH)
+export function calcBranchTotals(data: BranchData, year: number, month: number) {
+  const days = daysInMonth(year, month)
   let totalSales = 0
   let totalExpenses = 0
   let totalCash = 0
@@ -185,7 +197,7 @@ export function calcBranchTotals(data: BranchData) {
   let totalRecorded = 0
 
   for (let d = 1; d <= days; d++) {
-    const key = dateKey(d)
+    const key = dateKey(year, month, d)
     const sales = data.sales[key]
     const expenses = data.expenses[key]
     const day = normalizeSalesDay(sales)

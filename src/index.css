@@ -173,6 +173,55 @@ input {
   background: rgba(125, 202, 138, 0.1);
 }
 
+.acct-month {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.25rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, rgba(47, 39, 29, 0.95), rgba(28, 23, 18, 0.88));
+  box-shadow: var(--shadow);
+}
+
+.acct-month h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  color: var(--accent);
+  min-width: 9rem;
+  text-align: center;
+}
+
+.acct-month p {
+  margin: 0.15rem 0 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.acct-month button {
+  appearance: none;
+  border: 1px solid var(--line);
+  background: var(--bg-elevated);
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 0.5rem 0.95rem;
+  cursor: pointer;
+  font: inherit;
+}
+
+.acct-month button:hover {
+  border-color: var(--line-strong);
+  color: var(--text);
+}
+
+.acct-month .ghost {
+  background: rgba(232, 168, 74, 0.12);
+  color: var(--accent);
+  border-color: var(--line-strong);
+}
+
 .kpi-row {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -355,6 +404,11 @@ input {
   color: #1a130c;
   font-weight: 700;
   box-shadow: 0 6px 16px var(--accent-glow);
+}
+
+.day-btn.today:not(.selected) {
+  outline: 1px dashed rgba(232, 168, 74, 0.55);
+  outline-offset: -2px;
 }
 
 .form-section,
