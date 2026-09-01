@@ -1,7 +1,20 @@
-import type { AppData } from './types'
-import { emptyAppData } from './types'
+import type { AppData, BranchId, SalesDay } from './types'
+import { emptyAppData, emptyBranch, normalizeSalesDay } from './types'
 
 const STORAGE_KEY = 'shawarma-accounting-aug-2026-v1'
+
+function normalizeBranch(raw: AppData[BranchId] | undefined) {
+  const base = emptyBranch()
+  if (!raw) return base
+  const sales: Record<string, SalesDay> = {}
+  for (const [key, day] of Object.entries(raw.sales ?? {})) {
+    sales[key] = normalizeSalesDay(day)
+  }
+  return {
+    sales,
+    expenses: raw.expenses ?? {},
+  }
+}
 
 export function loadData(): AppData {
   try {
@@ -9,8 +22,8 @@ export function loadData(): AppData {
     if (!raw) return emptyAppData()
     const parsed = JSON.parse(raw) as AppData
     return {
-      wasita: parsed.wasita ?? emptyAppData().wasita,
-      beirut: parsed.beirut ?? emptyAppData().beirut,
+      wasita: normalizeBranch(parsed.wasita),
+      beirut: normalizeBranch(parsed.beirut),
     }
   } catch {
     return emptyAppData()

@@ -8,16 +8,30 @@ export const BRANCHES: { id: BranchId; name: string }[] = [
 export const YEAR = 2026
 export const MONTH = 7 // August (0-indexed)
 
-export const SALES_FIELDS = [
-  { key: 'device', label: 'الجهاز' },
-  { key: 'exchange1', label: 'صرافه 1' },
-  { key: 'visa1', label: 'Visa 1' },
+export const CASH_FIELD = { key: 'cash', label: 'الكاش' } as const
+
+export const CARD_FIELDS = [
+  { key: 'riyadh', label: 'الرياض' },
+  { key: 'rajhi', label: 'الراجحي' },
   { key: 'hala', label: 'هلا' },
-  { key: 'todayPurchases', label: 'مشتريات اليوم' },
-  { key: 'cash', label: 'الكاش النقدي' },
-  { key: 'deliveryApps', label: 'تطبيقات التوصيل' },
-  { key: 'surplusDeficit', label: 'فائض أو عجز' },
 ] as const
+
+export const RECORDED_SALES_FIELDS = [
+  { key: 'device', label: 'مبيعات داخل المحل' },
+  { key: 'deliveryApps', label: 'مبيعات التطبيقات' },
+] as const
+
+export type SalesDay = {
+  cash: number
+  riyadh: number
+  rajhi: number
+  hala: number
+  device: number
+  deliveryApps: number
+  todayPurchases: number
+}
+
+export type SalesKey = keyof SalesDay
 
 export const EXPENSE_FIELDS = [
   { key: 'chicken', label: 'الدجاج (البركة)' },
@@ -36,10 +50,7 @@ export const EXPENSE_FIELDS = [
   { key: 'housing', label: 'إيجار سكن عمال' },
 ] as const
 
-export type SalesKey = (typeof SALES_FIELDS)[number]['key']
 export type ExpenseKey = (typeof EXPENSE_FIELDS)[number]['key']
-
-export type SalesDay = Record<SalesKey, number>
 export type ExpenseDay = Record<ExpenseKey, number>
 
 export type BranchData = {
@@ -61,14 +72,13 @@ export const ARABIC_DAYS = [
 
 export function emptySales(): SalesDay {
   return {
-    device: 0,
-    exchange1: 0,
-    visa1: 0,
-    hala: 0,
-    todayPurchases: 0,
     cash: 0,
+    riyadh: 0,
+    rajhi: 0,
+    hala: 0,
+    device: 0,
     deliveryApps: 0,
-    surplusDeficit: 0,
+    todayPurchases: 0,
   }
 }
 
@@ -102,15 +112,45 @@ export function emptyAppData(): AppData {
   }
 }
 
-/** Revenue fields that count toward total sales (exclude اليوم purchases which is expense-like, and surplus/deficit which is adjustment) */
-export const SALES_REVENUE_KEYS: SalesKey[] = [
-  'device',
-  'exchange1',
-  'visa1',
-  'hala',
-  'cash',
-  'deliveryApps',
-]
+export function normalizeSalesDay(raw: unknown): SalesDay {
+  if (!raw || typeof raw !== 'object') return emptySales()
+  const rec = raw as Record<string, unknown>
+  const n = (key: string) => {
+    const value = Number(rec[key])
+    return Number.isFinite(value) ? value : 0
+  }
+  return {
+    cash: n('cash'),
+    riyadh: n('riyadh') || n('visa1'),
+    rajhi: n('rajhi'),
+    hala: n('hala'),
+    device: n('device'),
+    deliveryApps: n('deliveryApps'),
+    todayPurchases: n('todayPurchases'),
+  }
+}
+
+export function cardsTotal(day: SalesDay | undefined): number {
+  const s = normalizeSalesDay(day)
+  return s.riyadh + s.rajhi + s.hala
+}
+
+/** الإجمالي = الكاش + البطاقات */
+export function collectionTotal(day: SalesDay | undefined): number {
+  const s = normalizeSalesDay(day)
+  return s.cash + cardsTotal(s)
+}
+
+/** مبيعات داخل المحل + مبيعات التطبيقات */
+export function recordedSalesTotal(day: SalesDay | undefined): number {
+  const s = normalizeSalesDay(day)
+  return s.device + s.deliveryApps
+}
+
+/** فائض إن كان موجباً، وعجز إن كان سالباً: (كاش + بطاقات) − (داخل المحل + التطبيقات) */
+export function surplusDeficit(day: SalesDay | undefined): number {
+  return Math.round((collectionTotal(day) - recordedSalesTotal(day)) * 100) / 100
+}
 
 export function daysInMonth(year: number, month: number): number {
   return new Date(year, month + 1, 0).getDate()
@@ -128,15 +168,7 @@ export function formatMoney(value: number): string {
 }
 
 export function sumSalesDay(day: SalesDay | undefined): number {
-  if (!day) return 0
-  // إجمالي المبيعات = مصادر الدخل + فائض/عجز
-  // مشتريات اليوم تُحسب ضمن المصروفات
-  let total = 0
-  for (const key of SALES_REVENUE_KEYS) {
-    total += day[key] || 0
-  }
-  total += day.surplusDeficit || 0
-  return total
+  return collectionTotal(day)
 }
 
 export function sumExpenseDay(day: ExpenseDay | undefined): number {
@@ -148,20 +180,33 @@ export function calcBranchTotals(data: BranchData) {
   const days = daysInMonth(YEAR, MONTH)
   let totalSales = 0
   let totalExpenses = 0
+  let totalCash = 0
+  let totalCards = 0
+  let totalRecorded = 0
 
   for (let d = 1; d <= days; d++) {
     const key = dateKey(d)
     const sales = data.sales[key]
     const expenses = data.expenses[key]
-    // المبيعات: مصادر الدخل + فائض/عجز (بدون مشتريات اليوم)
-    totalSales += sumSalesDay(sales)
+    const day = normalizeSalesDay(sales)
+    totalCash += day.cash
+    totalCards += cardsTotal(day)
+    // المبيعات: الكاش + البطاقات
+    totalSales += sumSalesDay(day)
+    totalRecorded += recordedSalesTotal(day)
     // المصروفات: بنود المشتريات التفصيلية فقط
     // «مشتريات اليوم» في ورقة المبيعات للمطابقة مع الصندوق ولا تُضاعَف هنا
     totalExpenses += sumExpenseDay(expenses)
   }
 
+  const variance = Math.round((totalSales - totalRecorded) * 100) / 100
+
   return {
     totalSales,
+    totalCash,
+    totalCards,
+    totalRecorded,
+    variance,
     totalExpenses,
     netProfit: totalSales - totalExpenses,
   }

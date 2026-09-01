@@ -2,18 +2,24 @@ import { useEffect, useState } from 'react'
 import {
   ARABIC_DAYS,
   BRANCHES,
+  CARD_FIELDS,
+  CASH_FIELD,
   EXPENSE_FIELDS,
   MONTH,
-  SALES_FIELDS,
+  RECORDED_SALES_FIELDS,
   YEAR,
   calcBranchTotals,
+  cardsTotal,
+  collectionTotal,
   dateKey,
   daysInMonth,
   emptyExpenses,
   emptySales,
   formatMoney,
+  recordedSalesTotal,
   sumExpenseDay,
   sumSalesDay,
+  surplusDeficit,
   type AppData,
   type BranchId,
   type ExpenseKey,
@@ -85,6 +91,8 @@ function App() {
   const beirutTotals = calcBranchTotals(data.beirut)
   const grand = {
     totalSales: wasitaTotals.totalSales + beirutTotals.totalSales,
+    totalRecorded: wasitaTotals.totalRecorded + beirutTotals.totalRecorded,
+    variance: wasitaTotals.variance + beirutTotals.variance,
     totalExpenses: wasitaTotals.totalExpenses + beirutTotals.totalExpenses,
     netProfit:
       wasitaTotals.totalSales +
@@ -92,7 +100,10 @@ function App() {
       (wasitaTotals.totalExpenses + beirutTotals.totalExpenses),
   }
   const currentTotals = branch === 'wasita' ? wasitaTotals : beirutTotals
-  const daySalesTotal = sumSalesDay(sales)
+  const dayCollection = collectionTotal(sales)
+  const dayCards = cardsTotal(sales)
+  const dayRecorded = recordedSalesTotal(sales)
+  const dayVariance = surplusDeficit(sales)
   const dayExpenseTotal = sumExpenseDay(expenses)
 
   const hasDayData = (day: number) => {
@@ -207,7 +218,7 @@ function App() {
             </h2>
             <p>
               {tab === 'sales'
-                ? `إجمالي مبيعات اليوم: ${formatMoney(daySalesTotal)}`
+                ? `إجمالي التحصيل (كاش + بطاقات): ${formatMoney(dayCollection)}`
                 : `إجمالي مصروفات اليوم: ${formatMoney(dayExpenseTotal)}`}
             </p>
           </div>
@@ -237,31 +248,105 @@ function App() {
       {tab === 'sales' && (
         <section className="form-section">
           <h3>إدخال مبيعات اليوم — {BRANCHES.find((b) => b.id === branch)?.name}</h3>
-          <div className="fields">
-            {SALES_FIELDS.map((field) => (
-              <label key={field.key} className="field">
-                <span>{field.label}</span>
+
+          <div className="sales-groups">
+            <article className="sales-group">
+              <h4>الكاش</h4>
+              <label className="field">
+                <span>{CASH_FIELD.label}</span>
                 <input
                   type="number"
                   inputMode="decimal"
                   step="0.01"
-                  value={sales[field.key] || ''}
+                  value={sales.cash || ''}
                   placeholder="0"
-                  onChange={(e) => updateSales(field.key, parseNum(e.target.value))}
+                  onChange={(e) => updateSales('cash', parseNum(e.target.value))}
                 />
               </label>
-            ))}
+              <p className="group-subtotal">
+                إجمالي الكاش: <b>{formatMoney(sales.cash)}</b>
+              </p>
+            </article>
+
+            <article className="sales-group">
+              <h4>البطاقات</h4>
+              <div className="fields cards-fields">
+                {CARD_FIELDS.map((field) => (
+                  <label key={field.key} className="field">
+                    <span>{field.label}</span>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      step="0.01"
+                      value={sales[field.key] || ''}
+                      placeholder="0"
+                      onChange={(e) => updateSales(field.key, parseNum(e.target.value))}
+                    />
+                  </label>
+                ))}
+              </div>
+              <p className="group-subtotal">
+                إجمالي البطاقات: <b>{formatMoney(dayCards)}</b>
+              </p>
+            </article>
           </div>
+
           <div className="day-total-bar">
-            <span>إجمالي مبيعات هذا اليوم</span>
-            <strong>{formatMoney(daySalesTotal)}</strong>
+            <span>الإجمالي (الكاش + البطاقات)</span>
+            <strong>{formatMoney(dayCollection)}</strong>
           </div>
-          {sales.todayPurchases > 0 && (
-            <p className="hint">
-              مشتريات اليوم من الصندوق: {formatMoney(sales.todayPurchases)} — للمطابقة مع
-              صفحة المشتريات (لا تُحتسب مرتين في صافي الربح)
-            </p>
-          )}
+
+          <article className="sales-group recorded-group">
+            <h4>المبيعات المسجلة</h4>
+            <div className="fields">
+              {RECORDED_SALES_FIELDS.map((field) => (
+                <label key={field.key} className="field">
+                  <span>{field.label}</span>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    value={sales[field.key] || ''}
+                    placeholder="0"
+                    onChange={(e) => updateSales(field.key, parseNum(e.target.value))}
+                  />
+                </label>
+              ))}
+            </div>
+            <div className="day-total-bar">
+              <span>داخل المحل (الجهاز) + التطبيقات</span>
+              <strong>{formatMoney(dayRecorded)}</strong>
+            </div>
+          </article>
+
+          <div className={`variance-bar ${dayVariance > 0 ? 'surplus' : dayVariance < 0 ? 'deficit' : ''}`}>
+            <div>
+              <span>المقارنة: (الكاش + البطاقات) − (داخل المحل + التطبيقات)</span>
+              <p>
+                {dayVariance > 0
+                  ? 'يوجد فائض'
+                  : dayVariance < 0
+                    ? 'يوجد عجز'
+                    : 'لا يوجد فائض ولا عجز'}
+              </p>
+            </div>
+            <strong>
+              {dayVariance > 0 ? 'فائض ' : dayVariance < 0 ? 'عجز ' : ''}
+              {formatMoney(Math.abs(dayVariance))}
+            </strong>
+          </div>
+
+          <label className="field extra-field">
+            <span>مشتريات اليوم من الصندوق (للمطابقة فقط)</span>
+            <input
+              type="number"
+              inputMode="decimal"
+              step="0.01"
+              value={sales.todayPurchases || ''}
+              placeholder="0"
+              onChange={(e) => updateSales('todayPurchases', parseNum(e.target.value))}
+            />
+          </label>
         </section>
       )}
 
@@ -299,8 +384,30 @@ function App() {
               <h4>فرع الوسيطاء</h4>
               <dl>
                 <div>
-                  <dt>إجمالي المبيعات</dt>
+                  <dt>الكاش</dt>
+                  <dd>{formatMoney(wasitaTotals.totalCash)}</dd>
+                </div>
+                <div>
+                  <dt>البطاقات</dt>
+                  <dd>{formatMoney(wasitaTotals.totalCards)}</dd>
+                </div>
+                <div>
+                  <dt>إجمالي التحصيل</dt>
                   <dd className="pos">{formatMoney(wasitaTotals.totalSales)}</dd>
+                </div>
+                <div>
+                  <dt>المبيعات المسجلة</dt>
+                  <dd>{formatMoney(wasitaTotals.totalRecorded)}</dd>
+                </div>
+                <div>
+                  <dt>فائض / عجز</dt>
+                  <dd className={wasitaTotals.variance >= 0 ? 'pos' : 'neg'}>
+                    {wasitaTotals.variance > 0
+                      ? `فائض ${formatMoney(wasitaTotals.variance)}`
+                      : wasitaTotals.variance < 0
+                        ? `عجز ${formatMoney(Math.abs(wasitaTotals.variance))}`
+                        : formatMoney(0)}
+                  </dd>
                 </div>
                 <div>
                   <dt>إجمالي المصروفات</dt>
@@ -319,8 +426,30 @@ function App() {
               <h4>فرع بيروت</h4>
               <dl>
                 <div>
-                  <dt>إجمالي المبيعات</dt>
+                  <dt>الكاش</dt>
+                  <dd>{formatMoney(beirutTotals.totalCash)}</dd>
+                </div>
+                <div>
+                  <dt>البطاقات</dt>
+                  <dd>{formatMoney(beirutTotals.totalCards)}</dd>
+                </div>
+                <div>
+                  <dt>إجمالي التحصيل</dt>
                   <dd className="pos">{formatMoney(beirutTotals.totalSales)}</dd>
+                </div>
+                <div>
+                  <dt>المبيعات المسجلة</dt>
+                  <dd>{formatMoney(beirutTotals.totalRecorded)}</dd>
+                </div>
+                <div>
+                  <dt>فائض / عجز</dt>
+                  <dd className={beirutTotals.variance >= 0 ? 'pos' : 'neg'}>
+                    {beirutTotals.variance > 0
+                      ? `فائض ${formatMoney(beirutTotals.variance)}`
+                      : beirutTotals.variance < 0
+                        ? `عجز ${formatMoney(Math.abs(beirutTotals.variance))}`
+                        : formatMoney(0)}
+                  </dd>
                 </div>
                 <div>
                   <dt>إجمالي المصروفات</dt>
@@ -339,8 +468,22 @@ function App() {
               <h4>الإجمالي الكلي (الفرعين)</h4>
               <dl>
                 <div>
-                  <dt>إجمالي المبيعات</dt>
+                  <dt>إجمالي التحصيل</dt>
                   <dd className="pos">{formatMoney(grand.totalSales)}</dd>
+                </div>
+                <div>
+                  <dt>المبيعات المسجلة</dt>
+                  <dd>{formatMoney(grand.totalRecorded)}</dd>
+                </div>
+                <div>
+                  <dt>فائض / عجز</dt>
+                  <dd className={grand.variance >= 0 ? 'pos' : 'neg'}>
+                    {grand.variance > 0
+                      ? `فائض ${formatMoney(grand.variance)}`
+                      : grand.variance < 0
+                        ? `عجز ${formatMoney(Math.abs(grand.variance))}`
+                        : formatMoney(0)}
+                  </dd>
                 </div>
                 <div>
                   <dt>إجمالي المصروفات</dt>
@@ -363,7 +506,9 @@ function App() {
                 <tr>
                   <th>اليوم</th>
                   <th>اليوم الأسبوعي</th>
-                  <th>المبيعات</th>
+                  <th>التحصيل</th>
+                  <th>المسجلة</th>
+                  <th>فائض / عجز</th>
                   <th>المصروفات</th>
                   <th>الصافي</th>
                 </tr>
@@ -371,15 +516,25 @@ function App() {
               <tbody>
                 {Array.from({ length: totalDays }, (_, i) => i + 1).map((day) => {
                   const k = dateKey(day)
-                  const s = sumSalesDay(branchData.sales[k])
+                  const collected = sumSalesDay(branchData.sales[k])
+                  const recorded = recordedSalesTotal(branchData.sales[k])
+                  const variance = surplusDeficit(branchData.sales[k])
                   const e = sumExpenseDay(branchData.expenses[k])
-                  const net = s - e
+                  const net = collected - e
                   const wd = ARABIC_DAYS[new Date(YEAR, MONTH, day).getDay()]
                   return (
                     <tr key={day}>
                       <td>{day}</td>
                       <td>{wd}</td>
-                      <td>{formatMoney(s)}</td>
+                      <td>{formatMoney(collected)}</td>
+                      <td>{formatMoney(recorded)}</td>
+                      <td className={variance > 0 ? 'pos' : variance < 0 ? 'neg' : ''}>
+                        {variance > 0
+                          ? `فائض ${formatMoney(variance)}`
+                          : variance < 0
+                            ? `عجز ${formatMoney(Math.abs(variance))}`
+                            : formatMoney(0)}
+                      </td>
                       <td>{formatMoney(e)}</td>
                       <td className={net >= 0 ? 'pos' : 'neg'}>{formatMoney(net)}</td>
                     </tr>
@@ -390,6 +545,14 @@ function App() {
                 <tr>
                   <td colSpan={2}>المجموع</td>
                   <td>{formatMoney(currentTotals.totalSales)}</td>
+                  <td>{formatMoney(currentTotals.totalRecorded)}</td>
+                  <td className={currentTotals.variance >= 0 ? 'pos' : 'neg'}>
+                    {currentTotals.variance > 0
+                      ? `فائض ${formatMoney(currentTotals.variance)}`
+                      : currentTotals.variance < 0
+                        ? `عجز ${formatMoney(Math.abs(currentTotals.variance))}`
+                        : formatMoney(0)}
+                  </td>
                   <td>{formatMoney(currentTotals.totalExpenses)}</td>
                   <td className={currentTotals.netProfit >= 0 ? 'pos' : 'neg'}>
                     {formatMoney(currentTotals.netProfit)}

@@ -367,11 +367,94 @@ input {
   box-shadow: var(--shadow);
 }
 
-.form-section h3,
-.summary-section h3 {
-  margin: 0 0 1rem;
+.sales-groups {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.sales-group {
+  padding: 1rem;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: rgba(20, 17, 14, 0.45);
+}
+
+.recorded-group {
+  margin: 1rem 0;
+}
+
+.cards-fields {
+  grid-template-columns: 1fr;
+}
+
+.sales-group h4 {
+  margin: 0 0 0.85rem;
   font-family: var(--font-display);
-  font-size: 1.2rem;
+  color: var(--accent);
+}
+
+.sales-group h5 {
+  margin: 0.85rem 0 0.55rem;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.group-subtotal {
+  margin: 0.75rem 0 0;
+  color: var(--muted);
+}
+
+.group-subtotal b {
+  color: var(--text);
+}
+
+.variance-bar {
+  margin-top: 0.25rem;
+  padding: 0.95rem 1.1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  border-radius: 12px;
+  background: rgba(38, 32, 24, 0.8);
+  border: 1px solid var(--line-strong);
+}
+
+.variance-bar p {
+  margin: 0.25rem 0 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.variance-bar strong {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+}
+
+.variance-bar.surplus {
+  border-color: rgba(125, 202, 138, 0.45);
+  background: rgba(125, 202, 138, 0.1);
+}
+
+.variance-bar.surplus strong,
+.variance-bar.surplus p {
+  color: var(--pos);
+}
+
+.variance-bar.deficit {
+  border-color: rgba(232, 145, 122, 0.45);
+  background: rgba(232, 145, 122, 0.1);
+}
+
+.variance-bar.deficit strong,
+.variance-bar.deficit p {
+  color: var(--neg);
+}
+
+.extra-field {
+  margin-top: 1rem;
 }
 
 .fields {
@@ -555,7 +638,8 @@ input {
     grid-template-columns: 1fr;
   }
 
-  .fields {
+  .fields,
+  .sales-groups {
     grid-template-columns: 1fr;
   }
 
