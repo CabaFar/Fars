@@ -2,24 +2,24 @@ import { useEffect, useState } from 'react'
 import {
   ARABIC_DAYS,
   BRANCHES,
-  CARD_FIELDS,
-  CASH_FIELD,
+  DETAIL_FIELDS,
+  DEVICE_FIELD,
   EXPENSE_FIELDS,
-  RECORDED_SALES_FIELDS,
+  EXTRA_SALES_FIELDS,
   calcBranchTotals,
-  cardsTotal,
-  collectionTotal,
   dateKey,
   daysInMonth,
   emptyExpenses,
   emptySales,
   formatMoney,
+  inStoreSales,
   monthLabel,
-  recordedSalesTotal,
   shiftMonth,
   sumExpenseDay,
   sumSalesDay,
   surplusDeficit,
+  tillTotal,
+  totalWithApps,
   type AppData,
   type BranchId,
   type ExpenseKey,
@@ -28,6 +28,12 @@ import {
 import { loadData, saveData } from './storage'
 
 type Tab = 'sales' | 'expenses' | 'summary'
+
+function varianceText(value: number) {
+  if (value > 0) return `فائض ${formatMoney(value)}`
+  if (value < 0) return `عجز ${formatMoney(Math.abs(value))}`
+  return formatMoney(0)
+}
 
 function todayParts() {
   const d = new Date()
@@ -120,7 +126,8 @@ function App() {
   const beirutTotals = calcBranchTotals(data.beirut, year, month)
   const grand = {
     totalSales: wasitaTotals.totalSales + beirutTotals.totalSales,
-    totalRecorded: wasitaTotals.totalRecorded + beirutTotals.totalRecorded,
+    totalDevice: wasitaTotals.totalDevice + beirutTotals.totalDevice,
+    totalInStore: wasitaTotals.totalInStore + beirutTotals.totalInStore,
     variance: wasitaTotals.variance + beirutTotals.variance,
     totalExpenses: wasitaTotals.totalExpenses + beirutTotals.totalExpenses,
     netProfit:
@@ -129,9 +136,9 @@ function App() {
       (wasitaTotals.totalExpenses + beirutTotals.totalExpenses),
   }
   const currentTotals = branch === 'wasita' ? wasitaTotals : beirutTotals
-  const dayCollection = collectionTotal(sales)
-  const dayCards = cardsTotal(sales)
-  const dayRecorded = recordedSalesTotal(sales)
+  const dayTill = tillTotal(sales)
+  const dayInStore = inStoreSales(sales)
+  const dayWithApps = totalWithApps(sales)
   const dayVariance = surplusDeficit(sales)
   const dayExpenseTotal = sumExpenseDay(expenses)
 
@@ -263,7 +270,7 @@ function App() {
             </h2>
             <p>
               {tab === 'sales'
-                ? `إجمالي التحصيل (كاش + البطاقات): ${formatMoney(dayCollection)}`
+                ? `إجمالي المبيعات مع التطبيقات: ${formatMoney(dayWithApps)}`
                 : `إجمالي مصروفات اليوم: ${formatMoney(dayExpenseTotal)}`}
             </p>
           </div>
@@ -298,57 +305,25 @@ function App() {
         <section className="form-section">
           <h3>إدخال مبيعات اليوم — {BRANCHES.find((b) => b.id === branch)?.name}</h3>
 
-          <div className="sales-groups">
-            <article className="sales-group">
-              <h4>الكاش</h4>
-              <label className="field">
-                <span>{CASH_FIELD.label}</span>
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  step="0.01"
-                  value={sales.cash || ''}
-                  placeholder="0"
-                  onChange={(e) => updateSales('cash', parseNum(e.target.value))}
-                />
-              </label>
-              <p className="group-subtotal">
-                إجمالي الكاش: <b>{formatMoney(sales.cash)}</b>
-              </p>
-            </article>
-
-            <article className="sales-group">
-              <h4>البطاقات</h4>
-              <div className="fields cards-fields">
-                {CARD_FIELDS.map((field) => (
-                  <label key={field.key} className="field">
-                    <span>{field.label}</span>
-                    <input
-                      type="number"
-                      inputMode="decimal"
-                      step="0.01"
-                      value={sales[field.key] || ''}
-                      placeholder="0"
-                      onChange={(e) => updateSales(field.key, parseNum(e.target.value))}
-                    />
-                  </label>
-                ))}
-              </div>
-              <p className="group-subtotal">
-                إجمالي البطاقات: <b>{formatMoney(dayCards)}</b>
-              </p>
-            </article>
-          </div>
-
-          <div className="day-total-bar">
-            <span>الإجمالي (الكاش + البطاقات)</span>
-            <strong>{formatMoney(dayCollection)}</strong>
-          </div>
+          <article className="sales-group">
+            <h4>الجهاز</h4>
+            <label className="field">
+              <span>{DEVICE_FIELD.label} (إجمالي المبيعات في الجهاز)</span>
+              <input
+                type="number"
+                inputMode="decimal"
+                step="0.01"
+                value={sales.device || ''}
+                placeholder="0"
+                onChange={(e) => updateSales('device', parseNum(e.target.value))}
+              />
+            </label>
+          </article>
 
           <article className="sales-group recorded-group">
-            <h4>المبيعات المسجلة</h4>
+            <h4>التفاصيل</h4>
             <div className="fields">
-              {RECORDED_SALES_FIELDS.map((field) => (
+              {DETAIL_FIELDS.map((field) => (
                 <label key={field.key} className="field">
                   <span>{field.label}</span>
                   <input
@@ -362,15 +337,42 @@ function App() {
                 </label>
               ))}
             </div>
-            <div className="day-total-bar">
-              <span>داخل المحل (الجهاز) + التطبيقات</span>
-              <strong>{formatMoney(dayRecorded)}</strong>
+            <p className="group-subtotal">
+              الكاش + صرافة 1 + فيزا 1 + هلا: <b>{formatMoney(dayTill)}</b>
+            </p>
+          </article>
+
+          <article className="sales-group recorded-group">
+            <h4>المشتريات والتطبيقات</h4>
+            <div className="fields">
+              {EXTRA_SALES_FIELDS.map((field) => (
+                <label key={field.key} className="field">
+                  <span>{field.label}</span>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    value={sales[field.key] || ''}
+                    placeholder="0"
+                    onChange={(e) => updateSales(field.key, parseNum(e.target.value))}
+                  />
+                </label>
+              ))}
             </div>
           </article>
 
+          <div className="day-total-bar">
+            <span>المبيعات داخل المحل = الكاش + صرافة 1 + فيزا 1 + هلا − المشتريات</span>
+            <strong>{formatMoney(dayInStore)}</strong>
+          </div>
+          <div className="day-total-bar">
+            <span>إجمالي المبيعات مع التطبيقات = الكاش + صرافة 1 + فيزا 1 + هلا + التطبيقات − المشتريات</span>
+            <strong>{formatMoney(dayWithApps)}</strong>
+          </div>
+
           <div className={`variance-bar ${dayVariance > 0 ? 'surplus' : dayVariance < 0 ? 'deficit' : ''}`}>
             <div>
-              <span>المقارنة: (الكاش + البطاقات) − (داخل المحل + التطبيقات)</span>
+              <span>الفائض أو العجز = إجمالي المبيعات مع التطبيقات − الجهاز</span>
               <p>
                 {dayVariance > 0
                   ? 'يوجد فائض'
@@ -379,23 +381,8 @@ function App() {
                     : 'لا يوجد فائض ولا عجز'}
               </p>
             </div>
-            <strong>
-              {dayVariance > 0 ? 'فائض ' : dayVariance < 0 ? 'عجز ' : ''}
-              {formatMoney(Math.abs(dayVariance))}
-            </strong>
+            <strong>{varianceText(dayVariance)}</strong>
           </div>
-
-          <label className="field extra-field">
-            <span>مشتريات اليوم من الصندوق (للمطابقة فقط)</span>
-            <input
-              type="number"
-              inputMode="decimal"
-              step="0.01"
-              value={sales.todayPurchases || ''}
-              placeholder="0"
-              onChange={(e) => updateSales('todayPurchases', parseNum(e.target.value))}
-            />
-          </label>
         </section>
       )}
 
@@ -433,29 +420,21 @@ function App() {
               <h4>فرع الوسيطاء</h4>
               <dl>
                 <div>
-                  <dt>الكاش</dt>
-                  <dd>{formatMoney(wasitaTotals.totalCash)}</dd>
+                  <dt>الجهاز</dt>
+                  <dd>{formatMoney(wasitaTotals.totalDevice)}</dd>
                 </div>
                 <div>
-                  <dt>البطاقات</dt>
-                  <dd>{formatMoney(wasitaTotals.totalCards)}</dd>
+                  <dt>المبيعات داخل المحل</dt>
+                  <dd>{formatMoney(wasitaTotals.totalInStore)}</dd>
                 </div>
                 <div>
-                  <dt>إجمالي التحصيل</dt>
+                  <dt>إجمالي المبيعات مع التطبيقات</dt>
                   <dd className="pos">{formatMoney(wasitaTotals.totalSales)}</dd>
-                </div>
-                <div>
-                  <dt>المبيعات المسجلة</dt>
-                  <dd>{formatMoney(wasitaTotals.totalRecorded)}</dd>
                 </div>
                 <div>
                   <dt>فائض / عجز</dt>
                   <dd className={wasitaTotals.variance >= 0 ? 'pos' : 'neg'}>
-                    {wasitaTotals.variance > 0
-                      ? `فائض ${formatMoney(wasitaTotals.variance)}`
-                      : wasitaTotals.variance < 0
-                        ? `عجز ${formatMoney(Math.abs(wasitaTotals.variance))}`
-                        : formatMoney(0)}
+                    {varianceText(wasitaTotals.variance)}
                   </dd>
                 </div>
                 <div>
@@ -475,29 +454,21 @@ function App() {
               <h4>فرع بيروت</h4>
               <dl>
                 <div>
-                  <dt>الكاش</dt>
-                  <dd>{formatMoney(beirutTotals.totalCash)}</dd>
+                  <dt>الجهاز</dt>
+                  <dd>{formatMoney(beirutTotals.totalDevice)}</dd>
                 </div>
                 <div>
-                  <dt>البطاقات</dt>
-                  <dd>{formatMoney(beirutTotals.totalCards)}</dd>
+                  <dt>المبيعات داخل المحل</dt>
+                  <dd>{formatMoney(beirutTotals.totalInStore)}</dd>
                 </div>
                 <div>
-                  <dt>إجمالي التحصيل</dt>
+                  <dt>إجمالي المبيعات مع التطبيقات</dt>
                   <dd className="pos">{formatMoney(beirutTotals.totalSales)}</dd>
-                </div>
-                <div>
-                  <dt>المبيعات المسجلة</dt>
-                  <dd>{formatMoney(beirutTotals.totalRecorded)}</dd>
                 </div>
                 <div>
                   <dt>فائض / عجز</dt>
                   <dd className={beirutTotals.variance >= 0 ? 'pos' : 'neg'}>
-                    {beirutTotals.variance > 0
-                      ? `فائض ${formatMoney(beirutTotals.variance)}`
-                      : beirutTotals.variance < 0
-                        ? `عجز ${formatMoney(Math.abs(beirutTotals.variance))}`
-                        : formatMoney(0)}
+                    {varianceText(beirutTotals.variance)}
                   </dd>
                 </div>
                 <div>
@@ -517,21 +488,21 @@ function App() {
               <h4>الإجمالي الكلي (الفرعين)</h4>
               <dl>
                 <div>
-                  <dt>إجمالي التحصيل</dt>
-                  <dd className="pos">{formatMoney(grand.totalSales)}</dd>
+                  <dt>الجهاز</dt>
+                  <dd>{formatMoney(grand.totalDevice)}</dd>
                 </div>
                 <div>
-                  <dt>المبيعات المسجلة</dt>
-                  <dd>{formatMoney(grand.totalRecorded)}</dd>
+                  <dt>المبيعات داخل المحل</dt>
+                  <dd>{formatMoney(grand.totalInStore)}</dd>
+                </div>
+                <div>
+                  <dt>إجمالي المبيعات مع التطبيقات</dt>
+                  <dd className="pos">{formatMoney(grand.totalSales)}</dd>
                 </div>
                 <div>
                   <dt>فائض / عجز</dt>
                   <dd className={grand.variance >= 0 ? 'pos' : 'neg'}>
-                    {grand.variance > 0
-                      ? `فائض ${formatMoney(grand.variance)}`
-                      : grand.variance < 0
-                        ? `عجز ${formatMoney(Math.abs(grand.variance))}`
-                        : formatMoney(0)}
+                    {varianceText(grand.variance)}
                   </dd>
                 </div>
                 <div>
@@ -555,8 +526,9 @@ function App() {
                 <tr>
                   <th>اليوم</th>
                   <th>اليوم الأسبوعي</th>
-                  <th>التحصيل</th>
-                  <th>المسجلة</th>
+                  <th>الجهاز</th>
+                  <th>داخل المحل</th>
+                  <th>مع التطبيقات</th>
                   <th>فائض / عجز</th>
                   <th>المصروفات</th>
                   <th>الصافي</th>
@@ -565,24 +537,23 @@ function App() {
               <tbody>
                 {Array.from({ length: totalDays }, (_, i) => i + 1).map((day) => {
                   const k = dateKey(year, month, day)
-                  const collected = sumSalesDay(branchData.sales[k])
-                  const recorded = recordedSalesTotal(branchData.sales[k])
-                  const variance = surplusDeficit(branchData.sales[k])
+                  const row = branchData.sales[k]
+                  const device = row?.device || 0
+                  const inStore = inStoreSales(row)
+                  const withApps = sumSalesDay(row)
+                  const variance = surplusDeficit(row)
                   const e = sumExpenseDay(branchData.expenses[k])
-                  const net = collected - e
+                  const net = withApps - e
                   const wd = ARABIC_DAYS[new Date(year, month, day).getDay()]
                   return (
                     <tr key={day}>
                       <td>{day}</td>
                       <td>{wd}</td>
-                      <td>{formatMoney(collected)}</td>
-                      <td>{formatMoney(recorded)}</td>
+                      <td>{formatMoney(device)}</td>
+                      <td>{formatMoney(inStore)}</td>
+                      <td>{formatMoney(withApps)}</td>
                       <td className={variance > 0 ? 'pos' : variance < 0 ? 'neg' : ''}>
-                        {variance > 0
-                          ? `فائض ${formatMoney(variance)}`
-                          : variance < 0
-                            ? `عجز ${formatMoney(Math.abs(variance))}`
-                            : formatMoney(0)}
+                        {varianceText(variance)}
                       </td>
                       <td>{formatMoney(e)}</td>
                       <td className={net >= 0 ? 'pos' : 'neg'}>{formatMoney(net)}</td>
@@ -593,14 +564,11 @@ function App() {
               <tfoot>
                 <tr>
                   <td colSpan={2}>المجموع</td>
+                  <td>{formatMoney(currentTotals.totalDevice)}</td>
+                  <td>{formatMoney(currentTotals.totalInStore)}</td>
                   <td>{formatMoney(currentTotals.totalSales)}</td>
-                  <td>{formatMoney(currentTotals.totalRecorded)}</td>
                   <td className={currentTotals.variance >= 0 ? 'pos' : 'neg'}>
-                    {currentTotals.variance > 0
-                      ? `فائض ${formatMoney(currentTotals.variance)}`
-                      : currentTotals.variance < 0
-                        ? `عجز ${formatMoney(Math.abs(currentTotals.variance))}`
-                        : formatMoney(0)}
+                    {varianceText(currentTotals.variance)}
                   </td>
                   <td>{formatMoney(currentTotals.totalExpenses)}</td>
                   <td className={currentTotals.netProfit >= 0 ? 'pos' : 'neg'}>

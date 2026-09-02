@@ -5,27 +5,28 @@ export const BRANCHES: { id: BranchId; name: string }[] = [
   { id: 'beirut', name: 'فرع بيروت' },
 ]
 
-export const CASH_FIELD = { key: 'cash', label: 'الكاش' } as const
+export const DEVICE_FIELD = { key: 'device', label: 'الجهاز' } as const
 
-export const CARD_FIELDS = [
-  { key: 'riyadh', label: 'الرياض' },
-  { key: 'rajhi', label: 'الراجحي' },
+export const DETAIL_FIELDS = [
+  { key: 'cash', label: 'الكاش' },
+  { key: 'exchange1', label: 'صرافة 1' },
+  { key: 'visa1', label: 'فيزا 1' },
   { key: 'hala', label: 'هلا' },
 ] as const
 
-export const RECORDED_SALES_FIELDS = [
-  { key: 'device', label: 'مبيعات داخل المحل' },
-  { key: 'deliveryApps', label: 'مبيعات التطبيقات' },
+export const EXTRA_SALES_FIELDS = [
+  { key: 'todayPurchases', label: 'المشتريات' },
+  { key: 'deliveryApps', label: 'التطبيقات' },
 ] as const
 
 export type SalesDay = {
-  cash: number
-  riyadh: number
-  rajhi: number
-  hala: number
   device: number
-  deliveryApps: number
+  cash: number
+  exchange1: number
+  visa1: number
+  hala: number
   todayPurchases: number
+  deliveryApps: number
 }
 
 export type SalesKey = keyof SalesDay
@@ -69,13 +70,13 @@ export const ARABIC_DAYS = [
 
 export function emptySales(): SalesDay {
   return {
-    cash: 0,
-    riyadh: 0,
-    rajhi: 0,
-    hala: 0,
     device: 0,
-    deliveryApps: 0,
+    cash: 0,
+    exchange1: 0,
+    visa1: 0,
+    hala: 0,
     todayPurchases: 0,
+    deliveryApps: 0,
   }
 }
 
@@ -117,36 +118,42 @@ export function normalizeSalesDay(raw: unknown): SalesDay {
     return Number.isFinite(value) ? value : 0
   }
   return {
-    cash: n('cash'),
-    riyadh: n('riyadh') || n('visa1'),
-    rajhi: n('rajhi'),
-    hala: n('hala'),
     device: n('device'),
-    deliveryApps: n('deliveryApps'),
+    cash: n('cash'),
+    exchange1: n('exchange1') || n('rajhi'),
+    visa1: n('visa1') || n('riyadh'),
+    hala: n('hala'),
     todayPurchases: n('todayPurchases'),
+    deliveryApps: n('deliveryApps'),
   }
 }
 
-export function cardsTotal(day: SalesDay | undefined): number {
-  const s = normalizeSalesDay(day)
-  return s.riyadh + s.rajhi + s.hala
+function roundMoney(value: number): number {
+  return Math.round(value * 100) / 100
 }
 
-/** الإجمالي = الكاش + البطاقات */
-export function collectionTotal(day: SalesDay | undefined): number {
+/** الكاش + صرافة 1 + فيزا 1 + هلا */
+export function tillTotal(day: SalesDay | undefined): number {
   const s = normalizeSalesDay(day)
-  return s.cash + cardsTotal(s)
+  return roundMoney(s.cash + s.exchange1 + s.visa1 + s.hala)
 }
 
-/** مبيعات داخل المحل + مبيعات التطبيقات */
-export function recordedSalesTotal(day: SalesDay | undefined): number {
+/** المبيعات داخل المحل = الكاش + صرافة 1 + فيزا 1 + هلا − المشتريات */
+export function inStoreSales(day: SalesDay | undefined): number {
   const s = normalizeSalesDay(day)
-  return s.device + s.deliveryApps
+  return roundMoney(tillTotal(s) - s.todayPurchases)
 }
 
-/** فائض إن كان موجباً، وعجز إن كان سالباً: (كاش + بطاقات) − (داخل المحل + التطبيقات) */
+/** إجمالي المبيعات مع التطبيقات = الكاش + صرافة 1 + فيزا 1 + هلا + التطبيقات − المشتريات */
+export function totalWithApps(day: SalesDay | undefined): number {
+  const s = normalizeSalesDay(day)
+  return roundMoney(tillTotal(s) + s.deliveryApps - s.todayPurchases)
+}
+
+/** فائض أو عجز = إجمالي المبيعات مع التطبيقات − الجهاز */
 export function surplusDeficit(day: SalesDay | undefined): number {
-  return Math.round((collectionTotal(day) - recordedSalesTotal(day)) * 100) / 100
+  const s = normalizeSalesDay(day)
+  return roundMoney(totalWithApps(s) - s.device)
 }
 
 export function pad2(n: number): string {
@@ -180,7 +187,7 @@ export function formatMoney(value: number): string {
 }
 
 export function sumSalesDay(day: SalesDay | undefined): number {
-  return collectionTotal(day)
+  return totalWithApps(day)
 }
 
 export function sumExpenseDay(day: ExpenseDay | undefined): number {
@@ -192,34 +199,34 @@ export function calcBranchTotals(data: BranchData, year: number, month: number) 
   const days = daysInMonth(year, month)
   let totalSales = 0
   let totalExpenses = 0
-  let totalCash = 0
-  let totalCards = 0
-  let totalRecorded = 0
+  let totalDevice = 0
+  let totalInStore = 0
+  let totalApps = 0
+  let totalPurchases = 0
 
   for (let d = 1; d <= days; d++) {
     const key = dateKey(year, month, d)
     const sales = data.sales[key]
     const expenses = data.expenses[key]
     const day = normalizeSalesDay(sales)
-    totalCash += day.cash
-    totalCards += cardsTotal(day)
-    // المبيعات: الكاش + البطاقات
-    totalSales += sumSalesDay(day)
-    totalRecorded += recordedSalesTotal(day)
-    // المصروفات: بنود المشتريات التفصيلية فقط
-    // «مشتريات اليوم» في ورقة المبيعات للمطابقة مع الصندوق ولا تُضاعَف هنا
+    totalDevice += day.device
+    totalInStore += inStoreSales(day)
+    totalApps += day.deliveryApps
+    totalPurchases += day.todayPurchases
+    totalSales += totalWithApps(day)
     totalExpenses += sumExpenseDay(expenses)
   }
 
-  const variance = Math.round((totalSales - totalRecorded) * 100) / 100
+  const variance = roundMoney(totalSales - totalDevice)
 
   return {
     totalSales,
-    totalCash,
-    totalCards,
-    totalRecorded,
+    totalDevice,
+    totalInStore,
+    totalApps,
+    totalPurchases,
     variance,
     totalExpenses,
-    netProfit: totalSales - totalExpenses,
+    netProfit: roundMoney(totalSales - totalExpenses),
   }
 }

@@ -353,10 +353,11 @@
   border-radius: 12px;
   border: 1px solid var(--red-line);
   background: var(--paper);
+  margin-bottom: 0.9rem;
 }
 
 .recorded-group {
-  margin: 1rem 0;
+  margin: 0;
 }
 
 .cards-fields {
@@ -476,7 +477,7 @@
 }
 
 .day-total-bar {
-  margin-top: 1.15rem;
+  margin-top: 0.75rem;
   padding: 0.95rem 1.1rem;
   display: flex;
   justify-content: space-between;
@@ -568,7 +569,7 @@
 .month-table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 560px;
+  min-width: 720px;
   font-size: 0.92rem;
 }
 
