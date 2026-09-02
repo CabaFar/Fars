@@ -366,7 +366,7 @@ function App() {
             <strong>{formatMoney(dayInStore)}</strong>
           </div>
           <div className="day-total-bar">
-            <span>إجمالي المبيعات مع التطبيقات = الكاش + صرافة 1 + فيزا 1 + هلا + التطبيقات − المشتريات</span>
+            <span>إجمالي المبيعات مع التطبيقات = المبيعات داخل المحل + التطبيقات</span>
             <strong>{formatMoney(dayWithApps)}</strong>
           </div>
 

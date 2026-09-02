@@ -144,10 +144,10 @@ export function inStoreSales(day: SalesDay | undefined): number {
   return roundMoney(tillTotal(s) - s.todayPurchases)
 }
 
-/** إجمالي المبيعات مع التطبيقات = الكاش + صرافة 1 + فيزا 1 + هلا + التطبيقات − المشتريات */
+/** إجمالي المبيعات مع التطبيقات = المبيعات داخل المحل + التطبيقات */
 export function totalWithApps(day: SalesDay | undefined): number {
   const s = normalizeSalesDay(day)
-  return roundMoney(tillTotal(s) + s.deliveryApps - s.todayPurchases)
+  return roundMoney(inStoreSales(s) + s.deliveryApps)
 }
 
 /** فائض أو عجز = إجمالي المبيعات مع التطبيقات − الجهاز */
@@ -197,7 +197,6 @@ export function sumExpenseDay(day: ExpenseDay | undefined): number {
 
 export function calcBranchTotals(data: BranchData, year: number, month: number) {
   const days = daysInMonth(year, month)
-  let totalSales = 0
   let totalExpenses = 0
   let totalDevice = 0
   let totalInStore = 0
@@ -213,10 +212,10 @@ export function calcBranchTotals(data: BranchData, year: number, month: number) 
     totalInStore += inStoreSales(day)
     totalApps += day.deliveryApps
     totalPurchases += day.todayPurchases
-    totalSales += totalWithApps(day)
     totalExpenses += sumExpenseDay(expenses)
   }
 
+  const totalSales = roundMoney(totalInStore + totalApps)
   const variance = roundMoney(totalSales - totalDevice)
 
   return {
