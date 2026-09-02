@@ -1,95 +1,19 @@
-:root {
-  --bg: #0c1411;
-  --bg-panel: rgba(18, 32, 26, 0.88);
-  --bg-soft: #1a2b23;
-  --line: rgba(140, 196, 168, 0.18);
-  --line-strong: rgba(140, 196, 168, 0.34);
-  --text: #e8f2ec;
-  --muted: #9bb5a8;
-  --accent: #5dbe8e;
-  --accent-deep: #2f8f63;
-  --accent-glow: rgba(93, 190, 142, 0.28);
-  --in: #6fd39a;
-  --out: #e08b7a;
-  --radius: 16px;
-  --font-display: 'Noto Kufi Arabic', sans-serif;
-  --font-body: 'IBM Plex Sans Arabic', sans-serif;
-  --shadow: 0 18px 48px rgba(0, 0, 0, 0.35);
-}
-
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
-
-html {
-  color-scheme: dark;
-}
-
-body {
-  margin: 0;
-  min-height: 100vh;
-  font-family: var(--font-body);
-  background: var(--bg);
-  color: var(--text);
-  line-height: 1.6;
-}
-
-#root {
-  min-height: 100vh;
-}
-
-button,
-input {
-  font: inherit;
-}
-
 .cash-app {
   position: relative;
   max-width: 1120px;
   margin: 0 auto;
   padding: 1.5rem 1.25rem 3rem;
-  isolation: isolate;
 }
 
-.cash-bg {
-  position: fixed;
-  inset: 0;
-  background:
-    radial-gradient(ellipse at 80% 0%, rgba(47, 143, 99, 0.22), transparent 50%),
-    radial-gradient(ellipse at 10% 70%, rgba(28, 70, 52, 0.35), transparent 45%),
-    linear-gradient(180deg, #0c1411 0%, #101a16 100%);
-  z-index: -2;
-}
-
+.cash-bg,
 .cash-orb {
-  position: fixed;
-  width: 42vw;
-  height: 42vw;
-  top: -8%;
-  left: -8%;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(93, 190, 142, 0.16), transparent 68%);
-  filter: blur(8px);
-  animation: cash-drift 16s ease-in-out infinite alternate;
-  z-index: -1;
-  pointer-events: none;
-}
-
-@keyframes cash-drift {
-  from {
-    transform: translate(0, 0) scale(1);
-  }
-  to {
-    transform: translate(8%, 12%) scale(1.1);
-  }
+  display: none;
 }
 
 @keyframes cash-rise {
   from {
     opacity: 0;
-    transform: translateY(12px);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
@@ -115,10 +39,9 @@ input {
 .cash-mark {
   width: 3rem;
   height: 3rem;
-  border-radius: 14px;
-  background:
-    linear-gradient(145deg, var(--accent), var(--accent-deep));
-  box-shadow: 0 0 0 4px rgba(93, 190, 142, 0.12), var(--shadow);
+  border-radius: 50%;
+  background: linear-gradient(145deg, var(--red), var(--red-dark));
+  box-shadow: 0 0 0 4px #fff, 0 0 0 6px var(--red);
 }
 
 .cash-brand h1 {
@@ -126,6 +49,7 @@ input {
   font-family: var(--font-display);
   font-size: clamp(1.4rem, 3vw, 1.95rem);
   font-weight: 800;
+  color: var(--red-dark);
 }
 
 .cash-brand p {
@@ -143,8 +67,8 @@ input {
 .cash-links a {
   text-decoration: none;
   color: var(--muted);
-  border: 1px solid var(--line);
-  background: var(--bg-soft);
+  border: 1px solid var(--red-line);
+  background: #fff;
   padding: 0.4rem 0.8rem;
   border-radius: 999px;
   font-size: 0.85rem;
@@ -152,25 +76,25 @@ input {
 
 .cash-links a.current,
 .cash-links a:hover {
-  background: linear-gradient(135deg, var(--accent-deep), var(--accent));
-  color: #0c1411;
-  border-color: transparent;
+  background: var(--red);
+  color: #fff;
+  border-color: var(--red);
 }
 
 .cash-save {
   padding: 0.45rem 0.9rem;
   border-radius: 999px;
-  border: 1px solid var(--line);
-  background: rgba(18, 32, 26, 0.85);
+  border: 1px solid var(--red-line);
+  background: #fff;
   color: var(--muted);
   font-size: 0.85rem;
   transition: 0.25s ease;
 }
 
 .cash-save.on {
-  border-color: rgba(111, 211, 154, 0.45);
-  color: var(--in);
-  background: rgba(111, 211, 154, 0.1);
+  border-color: rgba(21, 122, 58, 0.35);
+  color: var(--ok);
+  background: var(--ok-soft);
 }
 
 .cash-kpis {
@@ -184,13 +108,14 @@ input {
 .cash-kpis article {
   padding: 1rem 1.05rem;
   border-radius: var(--radius);
-  border: 1px solid var(--line);
-  background: linear-gradient(165deg, rgba(26, 43, 35, 0.95), rgba(12, 20, 17, 0.9));
+  border: 1px solid var(--red-line);
+  background: #fff;
+  box-shadow: var(--shadow);
 }
 
 .cash-kpis article.accent {
-  border-color: var(--line-strong);
-  box-shadow: inset 0 0 0 1px rgba(93, 190, 142, 0.08), 0 10px 28px rgba(0, 0, 0, 0.22);
+  border-color: var(--red);
+  background: linear-gradient(165deg, #fff 0%, var(--red-soft) 100%);
 }
 
 .cash-kpis span {
@@ -204,6 +129,7 @@ input {
   font-family: var(--font-display);
   font-size: clamp(1.2rem, 2.4vw, 1.55rem);
   font-weight: 700;
+  color: var(--red-dark);
 }
 
 .in {
@@ -220,10 +146,9 @@ input {
   margin-bottom: 1.1rem;
   padding: 1.15rem;
   border-radius: calc(var(--radius) + 2px);
-  border: 1px solid var(--line);
-  background: var(--bg-panel);
+  border: 1px solid var(--red-line);
+  background: #fff;
   box-shadow: var(--shadow);
-  animation: cash-rise 0.55s ease both;
 }
 
 .cash-day-head {
@@ -257,8 +182,8 @@ input {
 
 .cash-month-nav button {
   appearance: none;
-  border: 1px solid var(--line);
-  background: rgba(26, 43, 35, 0.9);
+  border: 1px solid var(--red-line);
+  background: #fff;
   color: var(--muted);
   border-radius: 999px;
   padding: 0.5rem 0.9rem;
@@ -268,20 +193,20 @@ input {
 }
 
 .cash-month-nav button:hover {
-  color: var(--text);
-  border-color: var(--line-strong, rgba(93, 190, 142, 0.35));
+  color: var(--red-dark);
+  border-color: var(--red);
 }
 
 .cash-month-nav button.ghost {
-  background: rgba(93, 190, 142, 0.12);
-  color: var(--in);
+  background: #fff;
+  color: var(--red-dark);
 }
 
 .cash-month-nav strong {
   min-width: 8.5rem;
   text-align: center;
   font-family: var(--font-display);
-  color: var(--text);
+  color: var(--red-dark);
 }
 
 .cash-day-grid {
@@ -294,27 +219,28 @@ input {
   appearance: none;
   height: 2.55rem;
   border-radius: 10px;
-  border: 1px solid transparent;
-  background: var(--bg-soft);
+  border: 1px solid var(--red-line);
+  background: var(--paper);
   color: var(--muted);
   cursor: pointer;
   transition: 0.15s ease;
 }
 
 .cash-day-btn.filled {
-  border-color: rgba(93, 190, 142, 0.35);
-  color: var(--text);
+  border-color: var(--red);
+  color: var(--red-dark);
+  font-weight: 600;
 }
 
 .cash-day-btn.today:not(.selected) {
-  box-shadow: inset 0 0 0 1px rgba(93, 190, 142, 0.55);
+  box-shadow: inset 0 0 0 1px var(--red);
 }
 
 .cash-day-btn.selected {
-  background: linear-gradient(145deg, var(--accent), #8fd9b0);
-  color: #0c1411;
+  background: var(--red);
+  color: #fff;
   font-weight: 700;
-  box-shadow: 0 6px 16px var(--accent-glow);
+  border-color: var(--red);
 }
 
 .cash-day-btn:active {
@@ -334,14 +260,15 @@ input {
 .cash-card {
   padding: 1rem;
   border-radius: var(--radius);
-  border: 1px solid var(--line);
-  background: rgba(10, 18, 14, 0.55);
+  border: 1px solid var(--red-line);
+  background: var(--paper);
 }
 
 .cash-card h4 {
   margin: 0 0 0.85rem;
   font-family: var(--font-display);
   font-size: 1.05rem;
+  color: var(--red-dark);
 }
 
 .cash-field {
@@ -360,9 +287,9 @@ input {
   width: 100%;
   padding: 0.9rem 1rem;
   border-radius: 12px;
-  border: 1px solid var(--line);
-  background: rgba(8, 14, 11, 0.9);
-  color: var(--text);
+  border: 1px solid var(--red-line);
+  background: #fff;
+  color: var(--red-dark);
   font-family: var(--font-display);
   font-size: 1.35rem;
   font-weight: 700;
@@ -379,9 +306,9 @@ input {
   min-height: 4.5rem;
   padding: 0.75rem 0.9rem;
   border-radius: 12px;
-  border: 1px solid var(--line);
-  background: rgba(8, 14, 11, 0.9);
-  color: var(--text);
+  border: 1px solid var(--red-line);
+  background: #fff;
+  color: var(--ink);
   font: inherit;
   line-height: 1.55;
   resize: vertical;
@@ -390,7 +317,7 @@ input {
 }
 
 .cash-field.note textarea:focus {
-  border-color: var(--accent);
+  border-color: var(--red);
   box-shadow: 0 0 0 3px var(--accent-glow);
 }
 
@@ -400,7 +327,7 @@ input {
 }
 
 .cash-field input:focus {
-  border-color: var(--accent);
+  border-color: var(--red);
   box-shadow: 0 0 0 3px var(--accent-glow);
 }
 
@@ -423,8 +350,8 @@ input {
   gap: 0.75rem;
   padding: 0.8rem 0.95rem;
   border-radius: 12px;
-  background: rgba(93, 190, 142, 0.08);
-  border: 1px solid var(--line-strong);
+  background: var(--red-soft);
+  border: 1px solid var(--red-line);
 }
 
 .cash-net span,
@@ -452,7 +379,7 @@ input {
 .cash-table-wrap {
   overflow-x: auto;
   border-radius: var(--radius);
-  border: 1px solid var(--line);
+  border: 1px solid var(--red-line);
 }
 
 .cash-ledger table {
@@ -466,7 +393,7 @@ input {
 .cash-ledger td {
   padding: 0.7rem 0.85rem;
   text-align: right;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--red-line);
 }
 
 .cash-ledger td.note-cell {
@@ -479,8 +406,8 @@ input {
 }
 
 .cash-ledger th {
-  background: rgba(26, 43, 35, 0.95);
-  color: var(--muted);
+  background: var(--red-soft);
+  color: var(--red-dark);
   font-weight: 600;
 }
 
@@ -489,18 +416,19 @@ input {
 }
 
 .cash-ledger tbody tr:hover {
-  background: rgba(93, 190, 142, 0.06);
+  background: var(--red-soft);
 }
 
 .cash-ledger tbody tr.selected {
-  background: rgba(93, 190, 142, 0.14);
+  background: var(--red-soft);
 }
 
 .cash-ledger tfoot td {
-  background: rgba(93, 190, 142, 0.1);
+  background: var(--red-soft);
   font-weight: 700;
   border-bottom: none;
   font-family: var(--font-display);
+  color: var(--red-dark);
 }
 
 .cash-footer {
