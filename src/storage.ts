@@ -3,6 +3,7 @@ import { emptyAppData, emptyBranch, normalizeSalesDay } from './types'
 
 /** نفس المفتاح السابق حتى تبقى بيانات أغسطس ٢٠٢٦ عند التنقل بين الشهور */
 const STORAGE_KEY = 'shawarma-accounting-aug-2026-v1'
+export { STORAGE_KEY as ACCOUNTING_STORAGE_KEY }
 
 function normalizeBranch(raw: AppData[BranchId] | undefined) {
   const base = emptyBranch()

@@ -77,3 +77,67 @@ h4 {
   font-family: var(--font-display);
   color: var(--red-dark);
 }
+
+.sys-backup {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.15rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--red-line);
+  border-radius: var(--radius);
+  background: #fff;
+  box-shadow: var(--shadow);
+}
+
+.sys-backup h2 {
+  margin: 0;
+  font-size: 1.02rem;
+}
+
+.sys-backup p {
+  margin: 0.15rem 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.sys-backup-actions {
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.sys-backup button {
+  appearance: none;
+  border: 1px solid var(--red);
+  background: var(--red);
+  color: #fff;
+  border-radius: 999px;
+  padding: 0.5rem 0.95rem;
+  cursor: pointer;
+}
+
+.sys-backup button.ghost {
+  background: #fff;
+  color: var(--red-dark);
+  border-color: var(--red-line);
+}
+
+.sys-backup button:hover:not(:disabled) {
+  background: var(--red-dark);
+  border-color: var(--red-dark);
+  color: #fff;
+}
+
+.sys-backup button.ghost:hover:not(:disabled) {
+  background: var(--red-soft);
+  color: var(--red-dark);
+  border-color: var(--red);
+}
+
+.sys-backup button:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}

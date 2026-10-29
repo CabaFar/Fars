@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { BackupBar } from '../BackupBar'
 import {
   employeesForMonth,
   ensureMonth,
@@ -189,6 +190,8 @@ function HrApp() {
           {savedFlash ? 'تم الحفظ' : 'حفظ تلقائي'}
         </div>
       </header>
+
+      <BackupBar />
 
       <section className="hr-month" aria-label="الشهر">
         <button type="button" onClick={() => goMonth(-1)} aria-label="الشهر السابق">

@@ -2,6 +2,7 @@ import type { Employee } from './types'
 import { cloneForNewMonth, emptyEmployee, monthKey, normalizePaymentMethod } from './types'
 
 const STORAGE_KEY = 'shawarma-hr-employees-v1'
+export { STORAGE_KEY as HR_STORAGE_KEY }
 
 export type HrStore = {
   version: 2

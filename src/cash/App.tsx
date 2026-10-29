@@ -12,6 +12,7 @@ import {
   type CashDay,
   type CashMoneyField,
 } from './types'
+import { BackupBar } from '../BackupBar'
 import { loadCashData, saveCashData } from './storage'
 
 function todayParts() {
@@ -148,6 +149,8 @@ function CashApp() {
           {savedFlash ? 'تم الحفظ' : 'حفظ تلقائي'}
         </div>
       </header>
+
+      <BackupBar />
 
       <section className="cash-kpis" aria-label="ملخص الكاش">
         <article>
