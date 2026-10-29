@@ -9,6 +9,24 @@ const UNITS_KEY = 'shawarma-inventory-units-v1'
 const REMOVED_KEY = 'shawarma-inventory-removed-v1'
 const META_KEY = 'shawarma-inventory-meta-v1'
 
+export const INVENTORY_STORAGE_KEYS = [
+  STORAGE_KEY,
+  PRICE_KEY,
+  EXTRA_KEY,
+  UNITS_KEY,
+  REMOVED_KEY,
+  META_KEY,
+] as const
+
+export const INVENTORY_KEY = {
+  data: STORAGE_KEY,
+  prices: PRICE_KEY,
+  extras: EXTRA_KEY,
+  units: UNITS_KEY,
+  removed: REMOVED_KEY,
+  meta: META_KEY,
+} as const
+
 export type ItemMetaOverride = { name?: string; category?: CategoryId }
 export type ItemMetaOverrides = Record<string, ItemMetaOverride>
 

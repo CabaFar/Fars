@@ -25,6 +25,7 @@ import {
   type ExpenseKey,
   type SalesKey,
 } from './types'
+import { BackupBar } from './BackupBar'
 import { loadData, saveData } from './storage'
 
 type Tab = 'sales' | 'expenses' | 'summary'
@@ -176,6 +177,8 @@ function App() {
           {savedFlash ? 'تم الحفظ تلقائياً' : 'الحفظ تلقائي'}
         </div>
       </header>
+
+      <BackupBar />
 
       <section className="acct-month" aria-label="الشهر">
         <button type="button" onClick={() => goMonth(-1)} aria-label="الشهر السابق">

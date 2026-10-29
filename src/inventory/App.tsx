@@ -9,6 +9,7 @@ import {
   type ExtraItem,
   type Unit,
 } from './catalog'
+import { BackupBar } from '../BackupBar'
 import {
   exportInventory,
   importInventory,
@@ -380,6 +381,8 @@ function InventoryApp() {
           {savedFlash ? 'تم الحفظ' : 'حفظ تلقائي'}
         </div>
       </header>
+
+      <BackupBar />
 
       <section className="inv-grand no-print" aria-label="كميات مخزون الفروع">
         <h2>كميات المخزون المتوفرة بالفروع</h2>
@@ -996,10 +999,10 @@ function InventoryApp() {
                 exportInventory({ version: 5, data, prices, extras, units, removedIds, meta })
               }
             >
-              تنزيل نسخة احتياطية
+              تنزيل المخزون فقط
             </button>
             <button type="button" className="ghost" onClick={() => fileRef.current?.click()}>
-              استعادة نسخة
+              استعادة المخزون فقط
             </button>
             <input
               ref={fileRef}
