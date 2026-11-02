@@ -11,21 +11,30 @@ import {
 import {
   DOC_FIELDS,
   PAYMENT_METHODS,
+  activeAdvancePlans,
   advancesTotal,
   byPaymentMethod,
+  daysInMonth,
   deductionsTotal,
+  earnedSalary,
+  earnedSalaryTotal,
   emptyEmployee,
   expiryInfo,
   formatDateAr,
   formatMoney,
   grossSalaryTotal,
+  monthAdvances,
   monthKey,
   monthLabel,
   netSalary,
   netSalaryTotal,
   parseNum,
   paymentMethodLabel,
+  planInstallment,
+  planRemaining,
+  remainingAdvances,
   shiftMonth,
+  type AdvancePlan,
   type DocKey,
   type Employee,
   type ExpiryTone,
@@ -94,16 +103,32 @@ function HrApp() {
     return counts
   }, [employees])
 
-  const grossTotal = useMemo(() => grossSalaryTotal(employees), [employees])
+  const monthDays = daysInMonth(year, month)
+  const grossTotal = useMemo(() => earnedSalaryTotal(employees, year, month), [employees, year, month])
   const deductTotal = useMemo(() => deductionsTotal(employees), [employees])
-  const advanceTotal = useMemo(() => advancesTotal(employees), [employees])
-  const payrollNet = useMemo(() => netSalaryTotal(employees), [employees])
+  const advanceTotal = useMemo(() => advancesTotal(employees, key), [employees, key])
+  const payrollNet = useMemo(
+    () => netSalaryTotal(employees, year, month, key),
+    [employees, year, month, key],
+  )
   const cashEmployees = useMemo(() => byPaymentMethod(employees, 'cash'), [employees])
   const transferEmployees = useMemo(() => byPaymentMethod(employees, 'transfer'), [employees])
-  const cashGross = useMemo(() => grossSalaryTotal(cashEmployees), [cashEmployees])
-  const cashNet = useMemo(() => netSalaryTotal(cashEmployees), [cashEmployees])
-  const transferGross = useMemo(() => grossSalaryTotal(transferEmployees), [transferEmployees])
-  const transferNet = useMemo(() => netSalaryTotal(transferEmployees), [transferEmployees])
+  const cashGross = useMemo(
+    () => earnedSalaryTotal(cashEmployees, year, month),
+    [cashEmployees, year, month],
+  )
+  const cashNet = useMemo(
+    () => netSalaryTotal(cashEmployees, year, month, key),
+    [cashEmployees, year, month, key],
+  )
+  const transferGross = useMemo(
+    () => earnedSalaryTotal(transferEmployees, year, month),
+    [transferEmployees, year, month],
+  )
+  const transferNet = useMemo(
+    () => netSalaryTotal(transferEmployees, year, month, key),
+    [transferEmployees, year, month, key],
+  )
 
   const goMonth = (delta: number) => {
     const next = shiftMonth(year, month, delta)
@@ -129,6 +154,21 @@ function HrApp() {
       deductions: emp.deductions,
       deductionNote: emp.deductionNote ?? '',
       advances: emp.advances,
+      advancePlans:
+        emp.advancePlans && emp.advancePlans.length > 0
+          ? emp.advancePlans
+          : emp.advances > 0
+            ? [
+                {
+                  id: `adv-legacy-${emp.id}`,
+                  amount: emp.advances,
+                  months: 1,
+                  startKey: key,
+                  note: 'سلفة هذا الشهر',
+                },
+              ]
+            : [],
+      daysWorked: emp.daysWorked || 0,
       iqamaExpiry: emp.iqamaExpiry,
       healthCertExpiry: emp.healthCertExpiry,
       medicalInsuranceExpiry: emp.medicalInsuranceExpiry,
@@ -155,7 +195,9 @@ function HrApp() {
       paymentMethod: form.paymentMethod === 'transfer' ? 'transfer' : 'cash',
       deductions: form.deductions || 0,
       deductionNote: form.deductionNote.trim(),
-      advances: form.advances || 0,
+      advancePlans: form.advancePlans ?? [],
+      advances: monthAdvances(form, key),
+      daysWorked: form.daysWorked || 0,
       iqamaExpiry: form.iqamaExpiry,
       healthCertExpiry: form.healthCertExpiry,
       medicalInsuranceExpiry: form.medicalInsuranceExpiry,
@@ -255,7 +297,7 @@ function HrApp() {
         <article className="accent">
           <span>إجمالي الرواتب</span>
           <strong>{formatMoney(grossTotal)} ر.س</strong>
-          <small>بدون الخصومات والسلف</small>
+          <small>حسب أيام الدوام · قبل الخصم والسلف</small>
         </article>
         <article>
           <span>إجمالي الخصومات</span>
@@ -300,8 +342,8 @@ function HrApp() {
         <div className="hr-sheet-head">
           <h2>سجل الموظفين — {monthLabel(year, month)}</h2>
           <p>
-            إجمالي الرواتب = مجموع الراتب الأساسي بدون خصم ولا سلف · صافي الراتب = الراتب − الخصومات −
-            السلف
+            الراتب المستحق = الراتب الشهري ÷ {monthDays} × أيام الدوام · قسط السلفة يُخصم من المستحق
+            حسب عدد الأشهر
           </p>
         </div>
         <div className="hr-table-wrap">
@@ -310,11 +352,14 @@ function HrApp() {
               <tr>
                 <th>اسم الموظف</th>
                 <th>المسمى الوظيفي</th>
-                <th>الراتب</th>
+                <th>الراتب الشهري</th>
+                <th>أيام الدوام</th>
+                <th>المستحق</th>
                 <th>طريقة الصرف</th>
                 <th>الخصومات</th>
                 <th>سبب الخصم</th>
-                <th>السلف</th>
+                <th>قسط السلفة</th>
+                <th>متبقي السلف</th>
                 <th>صافي الراتب</th>
                 <th>انتهاء الإقامة</th>
                 <th>انتهاء الشهادة الصحية</th>
@@ -330,6 +375,8 @@ function HrApp() {
                   </td>
                   <td>{emp.jobTitle || '—'}</td>
                   <td>{formatMoney(emp.salary)}</td>
+                  <td>{emp.daysWorked > 0 ? emp.daysWorked : monthDays}</td>
+                  <td>{formatMoney(earnedSalary(emp, year, month))}</td>
                   <td>
                     <span className={`pay-badge pay-${emp.paymentMethod ?? 'cash'}`}>
                       {paymentMethodLabel(emp.paymentMethod)}
@@ -337,9 +384,10 @@ function HrApp() {
                   </td>
                   <td>{formatMoney(emp.deductions)}</td>
                   <td className="note-cell">{emp.deductionNote || '—'}</td>
-                  <td>{formatMoney(emp.advances)}</td>
+                  <td>{formatMoney(monthAdvances(emp, key))}</td>
+                  <td>{formatMoney(remainingAdvances(emp, key))}</td>
                   <td>
-                    <strong>{formatMoney(netSalary(emp))}</strong>
+                    <strong>{formatMoney(netSalary(emp, year, month, key))}</strong>
                   </td>
                   {DOC_FIELDS.map((field) => (
                     <td key={field.key}>
@@ -369,10 +417,13 @@ function HrApp() {
                   <td colSpan={2}>المجموع</td>
                   <td>{formatMoney(grossSalaryTotal(visible))} ر.س</td>
                   <td />
+                  <td>{formatMoney(earnedSalaryTotal(visible, year, month))} ر.س</td>
+                  <td />
                   <td>{formatMoney(deductionsTotal(visible))} ر.س</td>
                   <td />
-                  <td>{formatMoney(advancesTotal(visible))} ر.س</td>
-                  <td>{formatMoney(netSalaryTotal(visible))} ر.س</td>
+                  <td>{formatMoney(advancesTotal(visible, key))} ر.س</td>
+                  <td />
+                  <td>{formatMoney(netSalaryTotal(visible, year, month, key))} ر.س</td>
                   <td colSpan={4} />
                 </tr>
               </tfoot>
@@ -391,6 +442,9 @@ function HrApp() {
       {editing && (
         <EmployeeDialog
           initial={editing}
+          year={year}
+          month={month}
+          monthKeyValue={key}
           onCancel={() => setEditing(null)}
           onSave={saveEmployee}
         />
@@ -411,19 +465,60 @@ function ExpiryBadge({ dateValue }: { dateValue: string }) {
 
 function EmployeeDialog({
   initial,
+  year,
+  month,
+  monthKeyValue,
   onCancel,
   onSave,
 }: {
   initial: FormState
+  year: number
+  month: number
+  monthKeyValue: string
   onCancel: () => void
   onSave: (form: FormState) => void
 }) {
-  const [form, setForm] = useState<FormState>(initial)
-  const net = netSalary(form)
+  const [form, setForm] = useState<FormState>({
+    ...initial,
+    advancePlans: initial.advancePlans ?? [],
+    daysWorked: initial.daysWorked || 0,
+  })
+  const [draftAdvance, setDraftAdvance] = useState({ amount: 0, months: 1, note: '' })
+  const monthDays = daysInMonth(year, month)
+  const earned = earnedSalary(form, year, month)
+  const installment = monthAdvances(form, monthKeyValue)
+  const remaining = remainingAdvances(form, monthKeyValue)
+  const net = netSalary(form, year, month, monthKeyValue)
   const isEdit = Boolean(initial.id)
+  const plans = activeAdvancePlans(form, monthKeyValue)
 
   const setField = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }))
+  }
+
+  const addAdvance = () => {
+    const amount = draftAdvance.amount
+    const months = Math.max(1, Math.round(draftAdvance.months) || 1)
+    if (amount <= 0) {
+      window.alert('أدخل مبلغ السلفة')
+      return
+    }
+    const plan: AdvancePlan = {
+      id: `adv-${Date.now()}`,
+      amount,
+      months,
+      startKey: monthKeyValue,
+      note: draftAdvance.note.trim(),
+    }
+    setField('advancePlans', [...(form.advancePlans ?? []), plan])
+    setDraftAdvance({ amount: 0, months: 1, note: '' })
+  }
+
+  const removeAdvance = (id: string) => {
+    setField(
+      'advancePlans',
+      (form.advancePlans ?? []).filter((plan) => plan.id !== id),
+    )
   }
 
   return (
@@ -460,7 +555,7 @@ function EmployeeDialog({
             />
           </label>
           <label>
-            <span>الراتب</span>
+            <span>الراتب الشهري الكامل</span>
             <input
               type="number"
               inputMode="decimal"
@@ -470,6 +565,26 @@ function EmployeeDialog({
               onChange={(e) => setField('salary', parseNum(e.target.value))}
             />
           </label>
+          <label>
+            <span>أيام الدوام هذا الشهر</span>
+            <input
+              type="number"
+              inputMode="numeric"
+              min="0"
+              max={monthDays}
+              step="1"
+              value={form.daysWorked || ''}
+              placeholder={`${monthDays} = الشهر كامل`}
+              onChange={(e) => setField('daysWorked', parseNum(e.target.value))}
+            />
+            <small>
+              فارغ أو 0 = الشهر كامل ({monthDays} يوم) · المستحق = الراتب ÷ {monthDays} × أيام الدوام
+            </small>
+          </label>
+          <div className="hr-net-box">
+            <span>الراتب المستحق</span>
+            <strong>{formatMoney(earned)} ر.س</strong>
+          </div>
           <label>
             <span>طريقة صرف الراتب</span>
             <select
@@ -504,17 +619,86 @@ function EmployeeDialog({
               onChange={(e) => setField('deductionNote', e.target.value)}
             />
           </label>
-          <label>
-            <span>السلف</span>
-            <input
-              type="number"
-              inputMode="decimal"
-              min="0"
-              step="0.01"
-              value={form.advances || ''}
-              onChange={(e) => setField('advances', parseNum(e.target.value))}
-            />
-          </label>
+          <div className="hr-advance-box span-2">
+            <h4>السلف والتقسيط</h4>
+            <p>
+              أدخل مبلغ السلفة وعدد الأشهر ليُخصم القسط من الراتب كل شهر. قسط هذا الشهر:{' '}
+              <b>{formatMoney(installment)}</b> · المتبقي: <b>{formatMoney(remaining)}</b>
+            </p>
+            {plans.length > 0 && (
+              <ul className="hr-advance-list">
+                {plans.map((plan) => (
+                  <li key={plan.id}>
+                    <div>
+                      <strong>{formatMoney(plan.amount)} ر.س</strong>
+                      <span>
+                        على {plan.months} شهر · قسط {formatMoney(planInstallment(plan, monthKeyValue))} ·
+                        متبقي {formatMoney(planRemaining(plan, monthKeyValue))}
+                        {plan.note ? ` · ${plan.note}` : ''}
+                      </span>
+                    </div>
+                    <button type="button" className="tiny danger" onClick={() => removeAdvance(plan.id)}>
+                      حذف
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="hr-advance-draft">
+              <label>
+                <span>مبلغ السلفة</span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  step="0.01"
+                  value={draftAdvance.amount || ''}
+                  onChange={(e) =>
+                    setDraftAdvance((prev) => ({ ...prev, amount: parseNum(e.target.value) }))
+                  }
+                />
+              </label>
+              <label>
+                <span>تقسيط على (شهر)</span>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min="1"
+                  step="1"
+                  value={draftAdvance.months || ''}
+                  onChange={(e) =>
+                    setDraftAdvance((prev) => ({
+                      ...prev,
+                      months: Math.max(1, parseNum(e.target.value) || 1),
+                    }))
+                  }
+                />
+              </label>
+              <label>
+                <span>ملاحظة</span>
+                <input
+                  value={draftAdvance.note}
+                  placeholder="اختياري"
+                  onChange={(e) => setDraftAdvance((prev) => ({ ...prev, note: e.target.value }))}
+                />
+              </label>
+              <div className="hr-advance-preview">
+                <span>
+                  القسط الشهري:{' '}
+                  <b>
+                    {formatMoney(
+                      draftAdvance.amount > 0
+                        ? draftAdvance.amount / Math.max(1, draftAdvance.months)
+                        : 0,
+                    )}
+                  </b>
+                </span>
+                <button type="button" onClick={addAdvance}>
+                  إضافة السلفة
+                </button>
+              </div>
+            </div>
+          </div>
           <div className="hr-net-box">
             <span>صافي الراتب</span>
             <strong>{formatMoney(net)} ر.س</strong>

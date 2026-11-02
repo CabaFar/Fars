@@ -1,5 +1,11 @@
 import type { Employee } from './types'
-import { cloneForNewMonth, emptyEmployee, monthKey, normalizePaymentMethod } from './types'
+import {
+  cloneForNewMonth,
+  emptyEmployee,
+  monthKey,
+  normalizeAdvancePlan,
+  normalizePaymentMethod,
+} from './types'
 
 const STORAGE_KEY = 'shawarma-hr-employees-v1'
 export { STORAGE_KEY as HR_STORAGE_KEY }
@@ -21,6 +27,12 @@ function normalizeEmployee(row: Partial<Employee> & { id?: string }): Employee {
     deductions: Number(row.deductions) || 0,
     deductionNote: row.deductionNote ?? '',
     advances: Number(row.advances) || 0,
+    advancePlans: Array.isArray(row.advancePlans)
+      ? row.advancePlans
+          .map((plan) => normalizeAdvancePlan(plan, monthKey(new Date().getFullYear(), new Date().getMonth())))
+          .filter((plan): plan is NonNullable<typeof plan> => Boolean(plan))
+      : [],
+    daysWorked: Number(row.daysWorked) || 0,
     iqamaExpiry: row.iqamaExpiry ?? '',
     healthCertExpiry: row.healthCertExpiry ?? '',
     medicalInsuranceExpiry: row.medicalInsuranceExpiry ?? '',
@@ -79,7 +91,8 @@ export function ensureMonth(store: HrStore, key: string): HrStore {
   if (store.months[key]) return store
   const sourceKey = nearestSourceKey(store, key)
   const source = sourceKey ? store.months[sourceKey] : []
-  const cloned = sourceKey && sourceKey < key ? cloneForNewMonth(source) : source.map((emp) => ({ ...emp }))
+  const cloned =
+    sourceKey && sourceKey < key ? cloneForNewMonth(source, key) : source.map((emp) => ({ ...emp }))
   return {
     ...store,
     months: { ...store.months, [key]: cloned },
