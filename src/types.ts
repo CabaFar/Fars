@@ -12,6 +12,7 @@ export const DETAIL_FIELDS = [
   { key: 'exchange1', label: 'صرافة 1' },
   { key: 'visa1', label: 'فيزا 1' },
   { key: 'hala', label: 'هلا' },
+  { key: 'transfer', label: 'تحويل' },
 ] as const
 
 export const EXTRA_SALES_FIELDS = [
@@ -28,6 +29,8 @@ export type SalesDay = {
   todayPurchases: number
   deliveryApps: number
   canceledInvoices: number
+  ads: number
+  transfer: number
 }
 
 export type SalesKey = keyof SalesDay
@@ -95,6 +98,8 @@ export function emptySales(): SalesDay {
     todayPurchases: 0,
     deliveryApps: 0,
     canceledInvoices: 0,
+    ads: 0,
+    transfer: 0,
   }
 }
 
@@ -160,6 +165,8 @@ export function normalizeSalesDay(raw: unknown): SalesDay {
     todayPurchases: n('todayPurchases'),
     deliveryApps: n('deliveryApps'),
     canceledInvoices: n('canceledInvoices'),
+    ads: n('ads'),
+    transfer: n('transfer'),
   }
 }
 
@@ -167,13 +174,13 @@ function roundMoney(value: number): number {
   return Math.round(value * 100) / 100
 }
 
-/** الكاش + صرافة 1 + فيزا 1 + هلا */
+/** الكاش + صرافة 1 + فيزا 1 + هلا + تحويل */
 export function tillTotal(day: SalesDay | undefined): number {
   const s = normalizeSalesDay(day)
-  return roundMoney(s.cash + s.exchange1 + s.visa1 + s.hala)
+  return roundMoney(s.cash + s.exchange1 + s.visa1 + s.hala + s.transfer)
 }
 
-/** المبيعات داخل المحل = الكاش + صرافة 1 + فيزا 1 + هلا */
+/** المبيعات داخل المحل = الكاش + صرافة 1 + فيزا 1 + هلا + تحويل */
 export function inStoreSales(day: SalesDay | undefined): number {
   return tillTotal(day)
 }
@@ -184,10 +191,10 @@ export function totalWithApps(day: SalesDay | undefined): number {
   return roundMoney(inStoreSales(s) + s.deliveryApps - s.todayPurchases)
 }
 
-/** صافي الجهاز = الجهاز − الفواتير الملغاة */
+/** صافي الجهاز = الجهاز − الفواتير الملغاة − الإعلانات */
 export function deviceNet(day: SalesDay | undefined): number {
   const s = normalizeSalesDay(day)
-  return roundMoney(s.device - s.canceledInvoices)
+  return roundMoney(s.device - s.canceledInvoices - s.ads)
 }
 
 /** فائض أو عجز = إجمالي المبيعات مع التطبيقات − صافي الجهاز */
@@ -251,6 +258,7 @@ export function calcBranchTotals(
   let totalExpenses = 0
   let totalDevice = 0
   let totalCanceled = 0
+  let totalAds = 0
   let totalInStore = 0
   let totalApps = 0
   let totalPurchases = 0
@@ -262,6 +270,7 @@ export function calcBranchTotals(
     const day = normalizeSalesDay(sales)
     totalDevice += deviceNet(day)
     totalCanceled += day.canceledInvoices
+    totalAds += day.ads
     totalInStore += inStoreSales(day)
     totalApps += day.deliveryApps
     totalPurchases += day.todayPurchases
@@ -275,6 +284,7 @@ export function calcBranchTotals(
     totalSales,
     totalDevice,
     totalCanceled,
+    totalAds,
     totalInStore,
     totalApps,
     totalPurchases,
