@@ -27,6 +27,7 @@ export type SalesDay = {
   hala: number
   todayPurchases: number
   deliveryApps: number
+  canceledInvoices: number
 }
 
 export type SalesKey = keyof SalesDay
@@ -48,15 +49,31 @@ export const EXPENSE_FIELDS = [
   { key: 'housing', label: 'إيجار سكن عمال' },
 ] as const
 
-export type ExpenseKey = (typeof EXPENSE_FIELDS)[number]['key']
-export type ExpenseDay = Record<ExpenseKey, number>
+export type ExpenseKey = (typeof EXPENSE_FIELDS)[number]['key'] | string
+export type ExpenseDay = Record<string, number>
+
+export type ExtraExpense = {
+  id: string
+  label: string
+}
+
+export type ExpenseField = {
+  key: string
+  label: string
+  custom: boolean
+}
 
 export type BranchData = {
   sales: Record<string, SalesDay>
   expenses: Record<string, ExpenseDay>
 }
 
-export type AppData = Record<BranchId, BranchData>
+export type AppData = {
+  wasita: BranchData
+  beirut: BranchData
+  extraExpenses: ExtraExpense[]
+  expenseLabels: Record<string, string>
+}
 
 export const ARABIC_DAYS = [
   'الأحد',
@@ -77,6 +94,7 @@ export function emptySales(): SalesDay {
     hala: 0,
     todayPurchases: 0,
     deliveryApps: 0,
+    canceledInvoices: 0,
   }
 }
 
@@ -107,7 +125,23 @@ export function emptyAppData(): AppData {
   return {
     wasita: emptyBranch(),
     beirut: emptyBranch(),
+    extraExpenses: [],
+    expenseLabels: {},
   }
+}
+
+export function expenseFieldList(data: Pick<AppData, 'extraExpenses' | 'expenseLabels'>): ExpenseField[] {
+  const builtins = EXPENSE_FIELDS.map((field) => ({
+    key: field.key,
+    label: data.expenseLabels[field.key] || field.label,
+    custom: false,
+  }))
+  const extras = (data.extraExpenses ?? []).map((item) => ({
+    key: item.id,
+    label: item.label,
+    custom: true,
+  }))
+  return [...builtins, ...extras]
 }
 
 export function normalizeSalesDay(raw: unknown): SalesDay {
@@ -125,6 +159,7 @@ export function normalizeSalesDay(raw: unknown): SalesDay {
     hala: n('hala'),
     todayPurchases: n('todayPurchases'),
     deliveryApps: n('deliveryApps'),
+    canceledInvoices: n('canceledInvoices'),
   }
 }
 
@@ -149,10 +184,16 @@ export function totalWithApps(day: SalesDay | undefined): number {
   return roundMoney(inStoreSales(s) + s.deliveryApps - s.todayPurchases)
 }
 
-/** فائض أو عجز = إجمالي المبيعات مع التطبيقات − الجهاز */
+/** صافي الجهاز = الجهاز − الفواتير الملغاة */
+export function deviceNet(day: SalesDay | undefined): number {
+  const s = normalizeSalesDay(day)
+  return roundMoney(s.device - s.canceledInvoices)
+}
+
+/** فائض أو عجز = إجمالي المبيعات مع التطبيقات − صافي الجهاز */
 export function surplusDeficit(day: SalesDay | undefined): number {
   const s = normalizeSalesDay(day)
-  return roundMoney(totalWithApps(s) - s.device)
+  return roundMoney(totalWithApps(s) - deviceNet(s))
 }
 
 export function pad2(n: number): string {
@@ -189,15 +230,27 @@ export function sumSalesDay(day: SalesDay | undefined): number {
   return totalWithApps(day)
 }
 
-export function sumExpenseDay(day: ExpenseDay | undefined): number {
+export function sumExpenseDay(
+  day: ExpenseDay | undefined,
+  extraExpenses: ExtraExpense[] = [],
+): number {
   if (!day) return 0
-  return EXPENSE_FIELDS.reduce((acc, f) => acc + (day[f.key] || 0), 0)
+  let total = 0
+  for (const field of EXPENSE_FIELDS) total += Number(day[field.key]) || 0
+  for (const extra of extraExpenses) total += Number(day[extra.id]) || 0
+  return total
 }
 
-export function calcBranchTotals(data: BranchData, year: number, month: number) {
+export function calcBranchTotals(
+  data: BranchData,
+  year: number,
+  month: number,
+  extraExpenses: ExtraExpense[] = [],
+) {
   const days = daysInMonth(year, month)
   let totalExpenses = 0
   let totalDevice = 0
+  let totalCanceled = 0
   let totalInStore = 0
   let totalApps = 0
   let totalPurchases = 0
@@ -207,11 +260,12 @@ export function calcBranchTotals(data: BranchData, year: number, month: number) 
     const sales = data.sales[key]
     const expenses = data.expenses[key]
     const day = normalizeSalesDay(sales)
-    totalDevice += day.device
+    totalDevice += deviceNet(day)
+    totalCanceled += day.canceledInvoices
     totalInStore += inStoreSales(day)
     totalApps += day.deliveryApps
     totalPurchases += day.todayPurchases
-    totalExpenses += sumExpenseDay(expenses)
+    totalExpenses += sumExpenseDay(expenses, extraExpenses)
   }
 
   const totalSales = roundMoney(totalInStore + totalApps - totalPurchases)
@@ -220,6 +274,7 @@ export function calcBranchTotals(data: BranchData, year: number, month: number) 
   return {
     totalSales,
     totalDevice,
+    totalCanceled,
     totalInStore,
     totalApps,
     totalPurchases,

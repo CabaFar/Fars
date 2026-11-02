@@ -354,7 +354,7 @@
 .hr-table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 1100px;
+  min-width: 1280px;
   font-size: 0.92rem;
 }
 
@@ -525,6 +525,82 @@
   line-height: 1.45;
 }
 
+.hr-form-grid small {
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.hr-advance-box {
+  display: grid;
+  gap: 0.7rem;
+  padding: 0.9rem 1rem;
+  border-radius: 12px;
+  border: 1px solid var(--red-line);
+  background: var(--paper);
+}
+
+.hr-advance-box h4 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.hr-advance-box p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.hr-advance-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.hr-advance-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 10px;
+  background: #fff;
+  border: 1px solid var(--red-line);
+}
+
+.hr-advance-list span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.hr-advance-draft {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0.65rem;
+}
+
+.hr-advance-preview {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.hr-advance-preview button {
+  appearance: none;
+  border: 1px solid var(--red);
+  background: var(--red);
+  color: #fff;
+  border-radius: 999px;
+  padding: 0.5rem 0.9rem;
+  cursor: pointer;
+}
+
 .hr-net-box {
   display: flex;
   flex-direction: column;
@@ -564,7 +640,8 @@
 @media (max-width: 720px) {
   .hr-kpis,
   .hr-form-grid,
-  .hr-pay-split {
+  .hr-pay-split,
+  .hr-advance-draft {
     grid-template-columns: 1fr;
   }
 

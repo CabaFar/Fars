@@ -1,5 +1,13 @@
 export type SalaryPaymentMethod = 'cash' | 'transfer'
 
+export type AdvancePlan = {
+  id: string
+  amount: number
+  months: number
+  startKey: string
+  note: string
+}
+
 export type Employee = {
   id: string
   name: string
@@ -10,7 +18,11 @@ export type Employee = {
   deductions: number
   /** ملاحظة توضح سبب الخصم */
   deductionNote: string
+  /** قسط السلفة لهذا الشهر (يُحسب من الخطط أو القيمة القديمة) */
   advances: number
+  advancePlans: AdvancePlan[]
+  /** 0 = الشهر كامل */
+  daysWorked: number
   iqamaExpiry: string
   healthCertExpiry: string
   medicalInsuranceExpiry: string
@@ -33,6 +45,8 @@ export function emptyEmployee(): Omit<Employee, 'id'> {
     deductions: 0,
     deductionNote: '',
     advances: 0,
+    advancePlans: [],
+    daysWorked: 0,
     iqamaExpiry: '',
     healthCertExpiry: '',
     medicalInsuranceExpiry: '',
@@ -52,24 +66,121 @@ export function normalizePaymentMethod(value: unknown): SalaryPaymentMethod {
   return value === 'transfer' ? 'transfer' : 'cash'
 }
 
-export function netSalary(employee: Pick<Employee, 'salary' | 'deductions' | 'advances'>): number {
-  return Math.round((employee.salary - employee.deductions - employee.advances) * 100) / 100
+function roundMoney(value: number): number {
+  return Math.round(value * 100) / 100
+}
+
+export function daysInMonth(year: number, month: number): number {
+  return new Date(year, month + 1, 0).getDate()
+}
+
+export function monthToIndex(key: string): number {
+  const [year, month] = key.split('-').map(Number)
+  if (!year || !month) return 0
+  return year * 12 + (month - 1)
+}
+
+export function normalizeAdvancePlan(raw: Partial<AdvancePlan> | undefined, fallbackKey: string): AdvancePlan | null {
+  if (!raw) return null
+  const amount = Number(raw.amount) || 0
+  const months = Math.max(1, Math.round(Number(raw.months) || 1))
+  if (amount <= 0) return null
+  return {
+    id: raw.id || `adv-${Date.now()}`,
+    amount,
+    months,
+    startKey: raw.startKey || fallbackKey,
+    note: raw.note ?? '',
+  }
+}
+
+export function planInstallment(plan: AdvancePlan, currentKey: string): number {
+  const elapsed = monthToIndex(currentKey) - monthToIndex(plan.startKey)
+  if (elapsed < 0 || elapsed >= plan.months) return 0
+  return roundMoney(plan.amount / plan.months)
+}
+
+export function planRemaining(plan: AdvancePlan, currentKey: string): number {
+  const elapsed = monthToIndex(currentKey) - monthToIndex(plan.startKey)
+  if (elapsed < 0) return plan.amount
+  if (elapsed >= plan.months) return 0
+  return roundMoney(plan.amount - elapsed * (plan.amount / plan.months))
+}
+
+export function activeAdvancePlans(employee: Pick<Employee, 'advancePlans'>, currentKey: string): AdvancePlan[] {
+  return (employee.advancePlans ?? []).filter((plan) => planRemaining(plan, currentKey) > 0)
+}
+
+export function monthAdvances(
+  employee: Pick<Employee, 'advances' | 'advancePlans'>,
+  currentKey: string,
+): number {
+  const plans = employee.advancePlans ?? []
+  if (plans.length === 0) return Number(employee.advances) || 0
+  return roundMoney(plans.reduce((sum, plan) => sum + planInstallment(plan, currentKey), 0))
+}
+
+export function remainingAdvances(
+  employee: Pick<Employee, 'advancePlans' | 'advances'>,
+  currentKey: string,
+): number {
+  const plans = employee.advancePlans ?? []
+  if (plans.length === 0) return Number(employee.advances) || 0
+  return roundMoney(plans.reduce((sum, plan) => sum + planRemaining(plan, currentKey), 0))
+}
+
+export function earnedSalary(
+  employee: Pick<Employee, 'salary' | 'daysWorked'>,
+  year: number,
+  month: number,
+): number {
+  const days = daysInMonth(year, month)
+  const worked = employee.daysWorked > 0 ? Math.min(employee.daysWorked, days) : days
+  if (days <= 0) return 0
+  return roundMoney((employee.salary || 0) * (worked / days))
+}
+
+export function netSalary(
+  employee: Pick<Employee, 'salary' | 'deductions' | 'advances' | 'advancePlans' | 'daysWorked'>,
+  year: number,
+  month: number,
+  currentKey: string,
+): number {
+  return roundMoney(
+    earnedSalary(employee, year, month) - (employee.deductions || 0) - monthAdvances(employee, currentKey),
+  )
 }
 
 export function grossSalaryTotal(employees: Pick<Employee, 'salary'>[]): number {
   return employees.reduce((sum, emp) => sum + (emp.salary || 0), 0)
 }
 
+export function earnedSalaryTotal(
+  employees: Pick<Employee, 'salary' | 'daysWorked'>[],
+  year: number,
+  month: number,
+): number {
+  return employees.reduce((sum, emp) => sum + earnedSalary(emp, year, month), 0)
+}
+
 export function deductionsTotal(employees: Pick<Employee, 'deductions'>[]): number {
   return employees.reduce((sum, emp) => sum + (emp.deductions || 0), 0)
 }
 
-export function advancesTotal(employees: Pick<Employee, 'advances'>[]): number {
-  return employees.reduce((sum, emp) => sum + (emp.advances || 0), 0)
+export function advancesTotal(
+  employees: Pick<Employee, 'advances' | 'advancePlans'>[],
+  currentKey: string,
+): number {
+  return employees.reduce((sum, emp) => sum + monthAdvances(emp, currentKey), 0)
 }
 
-export function netSalaryTotal(employees: Pick<Employee, 'salary' | 'deductions' | 'advances'>[]): number {
-  return employees.reduce((sum, emp) => sum + netSalary(emp), 0)
+export function netSalaryTotal(
+  employees: Pick<Employee, 'salary' | 'deductions' | 'advances' | 'advancePlans' | 'daysWorked'>[],
+  year: number,
+  month: number,
+  currentKey: string,
+): number {
+  return employees.reduce((sum, emp) => sum + netSalary(emp, year, month, currentKey), 0)
 }
 
 export function byPaymentMethod(
@@ -98,12 +209,14 @@ export function monthLabel(year: number, month: number): string {
   )
 }
 
-export function cloneForNewMonth(employees: Employee[]): Employee[] {
+export function cloneForNewMonth(employees: Employee[], nextKey: string): Employee[] {
   return employees.map((emp) => ({
     ...emp,
     deductions: 0,
     deductionNote: '',
-    advances: 0,
+    daysWorked: 0,
+    advancePlans: emp.advancePlans ?? [],
+    advances: monthAdvances({ ...emp, advances: 0 }, nextKey),
   }))
 }
 

@@ -4,13 +4,14 @@ import {
   BRANCHES,
   DETAIL_FIELDS,
   DEVICE_FIELD,
-  EXPENSE_FIELDS,
   EXTRA_SALES_FIELDS,
   calcBranchTotals,
   dateKey,
   daysInMonth,
+  deviceNet,
   emptyExpenses,
   emptySales,
+  expenseFieldList,
   formatMoney,
   inStoreSales,
   monthLabel,
@@ -22,7 +23,7 @@ import {
   totalWithApps,
   type AppData,
   type BranchId,
-  type ExpenseKey,
+  type ExpenseField,
   type SalesKey,
 } from './types'
 import { BackupBar } from './BackupBar'
@@ -52,6 +53,7 @@ function App() {
     Math.min(now.day, daysInMonth(now.year, now.month)),
   )
   const [savedFlash, setSavedFlash] = useState(false)
+  const [expenseEditor, setExpenseEditor] = useState<ExpenseField | 'add' | null>(null)
 
   const totalDays = daysInMonth(year, month)
   const key = dateKey(year, month, selectedDay)
@@ -102,7 +104,7 @@ function App() {
     }))
   }
 
-  const updateExpense = (field: ExpenseKey, value: number) => {
+  const updateExpense = (field: string, value: number) => {
     setData((prev) => ({
       ...prev,
       [branch]: {
@@ -123,11 +125,52 @@ function App() {
     return Number.isFinite(n) ? n : 0
   }
 
-  const wasitaTotals = calcBranchTotals(data.wasita, year, month)
-  const beirutTotals = calcBranchTotals(data.beirut, year, month)
+  const saveExpenseField = (label: string, current: ExpenseField | 'add') => {
+    const name = label.trim()
+    if (!name) {
+      window.alert('أدخل اسم البند')
+      return
+    }
+    if (current === 'add') {
+      setData((prev) => ({
+        ...prev,
+        extraExpenses: [...prev.extraExpenses, { id: `exp-${Date.now()}`, label: name }],
+      }))
+    } else if (current.custom) {
+      setData((prev) => ({
+        ...prev,
+        extraExpenses: prev.extraExpenses.map((item) =>
+          item.id === current.key ? { ...item, label: name } : item,
+        ),
+      }))
+    } else {
+      setData((prev) => ({
+        ...prev,
+        expenseLabels: { ...prev.expenseLabels, [current.key]: name },
+      }))
+    }
+    setExpenseEditor(null)
+  }
+
+  const removeExpenseField = (field: ExpenseField) => {
+    if (!field.custom) return
+    const ok = window.confirm(`حذف بند «${field.label}»؟`)
+    if (!ok) return
+    setData((prev) => ({
+      ...prev,
+      extraExpenses: prev.extraExpenses.filter((item) => item.id !== field.key),
+    }))
+    setExpenseEditor(null)
+  }
+
+  const expenseFields = expenseFieldList(data)
+  const extras = data.extraExpenses
+  const wasitaTotals = calcBranchTotals(data.wasita, year, month, extras)
+  const beirutTotals = calcBranchTotals(data.beirut, year, month, extras)
   const grand = {
     totalSales: wasitaTotals.totalSales + beirutTotals.totalSales,
     totalDevice: wasitaTotals.totalDevice + beirutTotals.totalDevice,
+    totalCanceled: wasitaTotals.totalCanceled + beirutTotals.totalCanceled,
     totalInStore: wasitaTotals.totalInStore + beirutTotals.totalInStore,
     variance: wasitaTotals.variance + beirutTotals.variance,
     totalExpenses: wasitaTotals.totalExpenses + beirutTotals.totalExpenses,
@@ -140,15 +183,16 @@ function App() {
   const dayTill = tillTotal(sales)
   const dayInStore = inStoreSales(sales)
   const dayWithApps = totalWithApps(sales)
+  const dayDeviceNet = deviceNet(sales)
   const dayVariance = surplusDeficit(sales)
-  const dayExpenseTotal = sumExpenseDay(expenses)
+  const dayExpenseTotal = sumExpenseDay(expenses, extras)
 
   const hasDayData = (day: number) => {
     const k = dateKey(year, month, day)
     const s = branchData.sales[k]
     const e = branchData.expenses[k]
-    const salesFilled = s && Object.values(s).some((v) => v !== 0)
-    const expFilled = e && Object.values(e).some((v) => v !== 0)
+    const salesFilled = s && Object.values(s).some((v) => Number(v) !== 0)
+    const expFilled = e && expenseFields.some((field) => Number(e[field.key]) !== 0)
     return Boolean(salesFilled || expFilled)
   }
 
@@ -310,17 +354,33 @@ function App() {
 
           <article className="sales-group">
             <h4>الجهاز</h4>
-            <label className="field">
-              <span>{DEVICE_FIELD.label} (إجمالي المبيعات في الجهاز)</span>
-              <input
-                type="number"
-                inputMode="decimal"
-                step="0.01"
-                value={sales.device || ''}
-                placeholder="0"
-                onChange={(e) => updateSales('device', parseNum(e.target.value))}
-              />
-            </label>
+            <div className="fields">
+              <label className="field">
+                <span>{DEVICE_FIELD.label} (إجمالي المبيعات في الجهاز)</span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  step="0.01"
+                  value={sales.device || ''}
+                  placeholder="0"
+                  onChange={(e) => updateSales('device', parseNum(e.target.value))}
+                />
+              </label>
+              <label className="field">
+                <span>الفواتير الملغاة</span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  step="0.01"
+                  value={sales.canceledInvoices || ''}
+                  placeholder="0"
+                  onChange={(e) => updateSales('canceledInvoices', parseNum(e.target.value))}
+                />
+              </label>
+            </div>
+            <p className="group-subtotal">
+              صافي الجهاز = الجهاز − الفواتير الملغاة: <b>{formatMoney(dayDeviceNet)}</b>
+            </p>
           </article>
 
           <article className="sales-group recorded-group">
@@ -375,7 +435,7 @@ function App() {
 
           <div className={`variance-bar ${dayVariance > 0 ? 'surplus' : dayVariance < 0 ? 'deficit' : ''}`}>
             <div>
-              <span>الفائض أو العجز = إجمالي المبيعات مع التطبيقات − الجهاز</span>
+              <span>الفائض أو العجز = إجمالي المبيعات مع التطبيقات − صافي الجهاز</span>
               <p>
                 {dayVariance > 0
                   ? 'يوجد فائض'
@@ -391,11 +451,30 @@ function App() {
 
       {tab === 'expenses' && (
         <section className="form-section">
-          <h3>إدخال المشتريات والمصروفات — {BRANCHES.find((b) => b.id === branch)?.name}</h3>
+          <div className="expense-head">
+            <h3>إدخال المشتريات والمصروفات — {BRANCHES.find((b) => b.id === branch)?.name}</h3>
+            <button type="button" className="icon-add" onClick={() => setExpenseEditor('add')}>
+              <PlusIcon />
+              إضافة بند
+            </button>
+          </div>
           <div className="fields">
-            {EXPENSE_FIELDS.map((field) => (
+            {expenseFields.map((field) => (
               <label key={field.key} className="field">
-                <span>{field.label}</span>
+                <span className="field-label-row">
+                  {field.label}
+                  <button
+                    type="button"
+                    className="icon-edit"
+                    aria-label={`تعديل ${field.label}`}
+                    onClick={(e) => {
+                      e.preventDefault()
+                      setExpenseEditor(field)
+                    }}
+                  >
+                    <EditIcon />
+                  </button>
+                </span>
                 <input
                   type="number"
                   inputMode="decimal"
@@ -423,8 +502,12 @@ function App() {
               <h4>فرع الوسيطاء</h4>
               <dl>
                 <div>
-                  <dt>الجهاز</dt>
+                  <dt>الجهاز بعد الملغاة</dt>
                   <dd>{formatMoney(wasitaTotals.totalDevice)}</dd>
+                </div>
+                <div>
+                  <dt>الفواتير الملغاة</dt>
+                  <dd>{formatMoney(wasitaTotals.totalCanceled)}</dd>
                 </div>
                 <div>
                   <dt>المبيعات داخل المحل</dt>
@@ -457,8 +540,12 @@ function App() {
               <h4>فرع بيروت</h4>
               <dl>
                 <div>
-                  <dt>الجهاز</dt>
+                  <dt>الجهاز بعد الملغاة</dt>
                   <dd>{formatMoney(beirutTotals.totalDevice)}</dd>
+                </div>
+                <div>
+                  <dt>الفواتير الملغاة</dt>
+                  <dd>{formatMoney(beirutTotals.totalCanceled)}</dd>
                 </div>
                 <div>
                   <dt>المبيعات داخل المحل</dt>
@@ -491,8 +578,12 @@ function App() {
               <h4>الإجمالي الكلي (الفرعين)</h4>
               <dl>
                 <div>
-                  <dt>الجهاز</dt>
+                  <dt>الجهاز بعد الملغاة</dt>
                   <dd>{formatMoney(grand.totalDevice)}</dd>
+                </div>
+                <div>
+                  <dt>الفواتير الملغاة</dt>
+                  <dd>{formatMoney(grand.totalCanceled)}</dd>
                 </div>
                 <div>
                   <dt>المبيعات داخل المحل</dt>
@@ -530,6 +621,8 @@ function App() {
                   <th>اليوم</th>
                   <th>اليوم الأسبوعي</th>
                   <th>الجهاز</th>
+                  <th>ملغاة</th>
+                  <th>صافي الجهاز</th>
                   <th>داخل المحل</th>
                   <th>مع التطبيقات</th>
                   <th>فائض / عجز</th>
@@ -542,10 +635,12 @@ function App() {
                   const k = dateKey(year, month, day)
                   const row = branchData.sales[k]
                   const device = row?.device || 0
+                  const canceled = row?.canceledInvoices || 0
+                  const netDevice = deviceNet(row)
                   const inStore = inStoreSales(row)
                   const withApps = sumSalesDay(row)
                   const variance = surplusDeficit(row)
-                  const e = sumExpenseDay(branchData.expenses[k])
+                  const e = sumExpenseDay(branchData.expenses[k], extras)
                   const net = withApps - e
                   const wd = ARABIC_DAYS[new Date(year, month, day).getDay()]
                   return (
@@ -553,6 +648,8 @@ function App() {
                       <td>{day}</td>
                       <td>{wd}</td>
                       <td>{formatMoney(device)}</td>
+                      <td>{formatMoney(canceled)}</td>
+                      <td>{formatMoney(netDevice)}</td>
                       <td>{formatMoney(inStore)}</td>
                       <td>{formatMoney(withApps)}</td>
                       <td className={variance > 0 ? 'pos' : variance < 0 ? 'neg' : ''}>
@@ -567,6 +664,8 @@ function App() {
               <tfoot>
                 <tr>
                   <td colSpan={2}>المجموع</td>
+                  <td>{formatMoney(currentTotals.totalDevice + currentTotals.totalCanceled)}</td>
+                  <td>{formatMoney(currentTotals.totalCanceled)}</td>
                   <td>{formatMoney(currentTotals.totalDevice)}</td>
                   <td>{formatMoney(currentTotals.totalInStore)}</td>
                   <td>{formatMoney(currentTotals.totalSales)}</td>
@@ -587,6 +686,90 @@ function App() {
       <footer className="footer">
         البيانات تُحفظ على هذا الجهاز · {currentMonthLabel}
       </footer>
+
+      {expenseEditor && (
+        <ExpenseFieldDialog
+          field={expenseEditor}
+          onCancel={() => setExpenseEditor(null)}
+          onSave={saveExpenseField}
+          onDelete={removeExpenseField}
+        />
+      )}
+    </div>
+  )
+}
+
+function PlusIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden>
+      <path
+        fill="currentColor"
+        d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"
+      />
+    </svg>
+  )
+}
+
+function EditIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden>
+      <path
+        fill="currentColor"
+        d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"
+      />
+    </svg>
+  )
+}
+
+function ExpenseFieldDialog({
+  field,
+  onCancel,
+  onSave,
+  onDelete,
+}: {
+  field: ExpenseField | 'add'
+  onCancel: () => void
+  onSave: (label: string, current: ExpenseField | 'add') => void
+  onDelete: (field: ExpenseField) => void
+}) {
+  const isAdd = field === 'add'
+  const [label, setLabel] = useState(isAdd ? '' : field.label)
+
+  return (
+    <div className="acct-modal-backdrop" role="presentation" onClick={onCancel}>
+      <form
+        className="acct-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="expense-field-title"
+        onClick={(e) => e.stopPropagation()}
+        onSubmit={(e) => {
+          e.preventDefault()
+          onSave(label, field)
+        }}
+      >
+        <h3 id="expense-field-title">{isAdd ? 'إضافة بند' : 'تعديل البند'}</h3>
+        <label className="field">
+          <span>اسم البند</span>
+          <input
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            placeholder="مثال: صيانة، أكياس، مياه..."
+            autoFocus
+          />
+        </label>
+        <div className="acct-modal-actions">
+          {!isAdd && field.custom && (
+            <button type="button" className="danger" onClick={() => onDelete(field)}>
+              حذف
+            </button>
+          )}
+          <button type="button" className="ghost" onClick={onCancel}>
+            إلغاء
+          </button>
+          <button type="submit">{isAdd ? 'إضافة' : 'حفظ'}</button>
+        </div>
+      </form>
     </div>
   )
 }
