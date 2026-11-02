@@ -171,6 +171,7 @@ function App() {
     totalSales: wasitaTotals.totalSales + beirutTotals.totalSales,
     totalDevice: wasitaTotals.totalDevice + beirutTotals.totalDevice,
     totalCanceled: wasitaTotals.totalCanceled + beirutTotals.totalCanceled,
+    totalAds: wasitaTotals.totalAds + beirutTotals.totalAds,
     totalInStore: wasitaTotals.totalInStore + beirutTotals.totalInStore,
     variance: wasitaTotals.variance + beirutTotals.variance,
     totalExpenses: wasitaTotals.totalExpenses + beirutTotals.totalExpenses,
@@ -377,14 +378,26 @@ function App() {
                   onChange={(e) => updateSales('canceledInvoices', parseNum(e.target.value))}
                 />
               </label>
+              <label className="field">
+                <span>الإعلانات</span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  step="0.01"
+                  value={sales.ads || ''}
+                  placeholder="0"
+                  onChange={(e) => updateSales('ads', parseNum(e.target.value))}
+                />
+              </label>
             </div>
             <p className="group-subtotal">
-              صافي الجهاز = الجهاز − الفواتير الملغاة: <b>{formatMoney(dayDeviceNet)}</b>
+              صافي الجهاز = الجهاز − الفواتير الملغاة − الإعلانات:{' '}
+              <b>{formatMoney(dayDeviceNet)}</b>
             </p>
           </article>
 
           <article className="sales-group recorded-group">
-            <h4>التفاصيل</h4>
+            <h4>المبيعات داخل المحل</h4>
             <div className="fields">
               {DETAIL_FIELDS.map((field) => (
                 <label key={field.key} className="field">
@@ -401,7 +414,7 @@ function App() {
               ))}
             </div>
             <p className="group-subtotal">
-              الكاش + صرافة 1 + فيزا 1 + هلا: <b>{formatMoney(dayTill)}</b>
+              الكاش + صرافة 1 + فيزا 1 + هلا + تحويل: <b>{formatMoney(dayTill)}</b>
             </p>
           </article>
 
@@ -425,7 +438,7 @@ function App() {
           </article>
 
           <div className="day-total-bar">
-            <span>المبيعات داخل المحل = الكاش + صرافة 1 + فيزا 1 + هلا</span>
+            <span>المبيعات داخل المحل = الكاش + صرافة 1 + فيزا 1 + هلا + تحويل</span>
             <strong>{formatMoney(dayInStore)}</strong>
           </div>
           <div className="day-total-bar">
@@ -502,12 +515,16 @@ function App() {
               <h4>فرع الوسيطاء</h4>
               <dl>
                 <div>
-                  <dt>الجهاز بعد الملغاة</dt>
+                  <dt>صافي الجهاز</dt>
                   <dd>{formatMoney(wasitaTotals.totalDevice)}</dd>
                 </div>
                 <div>
                   <dt>الفواتير الملغاة</dt>
                   <dd>{formatMoney(wasitaTotals.totalCanceled)}</dd>
+                </div>
+                <div>
+                  <dt>الإعلانات</dt>
+                  <dd>{formatMoney(wasitaTotals.totalAds)}</dd>
                 </div>
                 <div>
                   <dt>المبيعات داخل المحل</dt>
@@ -540,12 +557,16 @@ function App() {
               <h4>فرع بيروت</h4>
               <dl>
                 <div>
-                  <dt>الجهاز بعد الملغاة</dt>
+                  <dt>صافي الجهاز</dt>
                   <dd>{formatMoney(beirutTotals.totalDevice)}</dd>
                 </div>
                 <div>
                   <dt>الفواتير الملغاة</dt>
                   <dd>{formatMoney(beirutTotals.totalCanceled)}</dd>
+                </div>
+                <div>
+                  <dt>الإعلانات</dt>
+                  <dd>{formatMoney(beirutTotals.totalAds)}</dd>
                 </div>
                 <div>
                   <dt>المبيعات داخل المحل</dt>
@@ -578,12 +599,16 @@ function App() {
               <h4>الإجمالي الكلي (الفرعين)</h4>
               <dl>
                 <div>
-                  <dt>الجهاز بعد الملغاة</dt>
+                  <dt>صافي الجهاز</dt>
                   <dd>{formatMoney(grand.totalDevice)}</dd>
                 </div>
                 <div>
                   <dt>الفواتير الملغاة</dt>
                   <dd>{formatMoney(grand.totalCanceled)}</dd>
+                </div>
+                <div>
+                  <dt>الإعلانات</dt>
+                  <dd>{formatMoney(grand.totalAds)}</dd>
                 </div>
                 <div>
                   <dt>المبيعات داخل المحل</dt>
@@ -622,6 +647,7 @@ function App() {
                   <th>اليوم الأسبوعي</th>
                   <th>الجهاز</th>
                   <th>ملغاة</th>
+                  <th>إعلانات</th>
                   <th>صافي الجهاز</th>
                   <th>داخل المحل</th>
                   <th>مع التطبيقات</th>
@@ -636,6 +662,7 @@ function App() {
                   const row = branchData.sales[k]
                   const device = row?.device || 0
                   const canceled = row?.canceledInvoices || 0
+                  const ads = row?.ads || 0
                   const netDevice = deviceNet(row)
                   const inStore = inStoreSales(row)
                   const withApps = sumSalesDay(row)
@@ -649,6 +676,7 @@ function App() {
                       <td>{wd}</td>
                       <td>{formatMoney(device)}</td>
                       <td>{formatMoney(canceled)}</td>
+                      <td>{formatMoney(ads)}</td>
                       <td>{formatMoney(netDevice)}</td>
                       <td>{formatMoney(inStore)}</td>
                       <td>{formatMoney(withApps)}</td>
@@ -664,8 +692,13 @@ function App() {
               <tfoot>
                 <tr>
                   <td colSpan={2}>المجموع</td>
-                  <td>{formatMoney(currentTotals.totalDevice + currentTotals.totalCanceled)}</td>
+                  <td>
+                    {formatMoney(
+                      currentTotals.totalDevice + currentTotals.totalCanceled + currentTotals.totalAds,
+                    )}
+                  </td>
                   <td>{formatMoney(currentTotals.totalCanceled)}</td>
+                  <td>{formatMoney(currentTotals.totalAds)}</td>
                   <td>{formatMoney(currentTotals.totalDevice)}</td>
                   <td>{formatMoney(currentTotals.totalInStore)}</td>
                   <td>{formatMoney(currentTotals.totalSales)}</td>
