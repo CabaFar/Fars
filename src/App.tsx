@@ -27,6 +27,7 @@ import {
   type SalesKey,
 } from './types'
 import { BackupBar } from './BackupBar'
+import { getBrand } from './brand'
 import { loadData, saveData } from './storage'
 
 type Tab = 'sales' | 'expenses' | 'summary'
@@ -206,7 +207,7 @@ function App() {
         <div className="brand">
           <span className="brand-mark" aria-hidden />
           <div>
-            <h1>شاورما — المحاسبة</h1>
+            <h1>{getBrand().name} — المحاسبة</h1>
             <p>فرع الوسيطاء وفرع بيروت</p>
           </div>
         </div>

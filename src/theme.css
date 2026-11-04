@@ -38,6 +38,36 @@
   --shadow: 0 12px 32px rgba(200, 16, 46, 0.07);
 }
 
+html[data-brand='street'] {
+  --red: #1f7a3a;
+  --red-dark: #14633d;
+  --red-deep: #0e4a2d;
+  --red-soft: #f2faf5;
+  --red-line: #c5e3d1;
+  --white: #ffffff;
+  --paper: #f7fbf8;
+  --ink: #122018;
+  --muted: #5d7a68;
+  --accent: #1f7a3a;
+  --accent-hot: #14633d;
+  --accent-deep: #14633d;
+  --accent-glow: rgba(31, 122, 58, 0.14);
+  --line: #c5e3d1;
+  --line-strong: #9ccbb0;
+  --bg: #f7fbf8;
+  --bg-deep: #ffffff;
+  --bg-elevated: #ffffff;
+  --bg-soft: #f2faf5;
+  --bg-panel: #ffffff;
+  --shadow: 0 12px 32px rgba(31, 122, 58, 0.08);
+}
+
+html[data-brand='street'] body {
+  background:
+    radial-gradient(circle at 12% -10%, rgba(31, 122, 58, 0.1), transparent 42%),
+    linear-gradient(180deg, #ffffff 0%, var(--paper) 100%);
+}
+
 *,
 *::before,
 *::after {
