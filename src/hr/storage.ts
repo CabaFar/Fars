@@ -1,3 +1,4 @@
+import { storageKey } from '../brand'
 import type { Employee } from './types'
 import {
   cloneForNewMonth,
@@ -8,7 +9,9 @@ import {
 } from './types'
 
 const STORAGE_KEY = 'shawarma-hr-employees-v1'
-export { STORAGE_KEY as HR_STORAGE_KEY }
+export function hrStorageKey() {
+  return storageKey(STORAGE_KEY)
+}
 
 export type HrStore = {
   version: 2
@@ -50,7 +53,7 @@ function emptyStore(): HrStore {
 
 export function loadStore(): HrStore {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = localStorage.getItem(hrStorageKey())
     if (!raw) return emptyStore()
     const parsed = JSON.parse(raw) as HrStore | Employee[]
     if (Array.isArray(parsed)) {
@@ -72,7 +75,7 @@ export function loadStore(): HrStore {
 }
 
 export function saveStore(store: HrStore): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(store))
+  localStorage.setItem(hrStorageKey(), JSON.stringify(store))
 }
 
 function nearestSourceKey(store: HrStore, targetKey: string): string | null {

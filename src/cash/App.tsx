@@ -13,6 +13,7 @@ import {
   type CashMoneyField,
 } from './types'
 import { BackupBar } from '../BackupBar'
+import { getBrand } from '../brand'
 import { loadCashData, saveCashData } from './storage'
 
 function todayParts() {
@@ -131,7 +132,7 @@ function CashApp() {
         <div className="cash-brand">
           <span className="cash-mark" aria-hidden />
           <div>
-            <h1>سجل الكاش اليومي</h1>
+            <h1>{getBrand().titles.cash}</h1>
             <p>
               كل الأشهر · فرع الوسيطاء وفرع بيروت · {monthLabel}
             </p>

@@ -1,23 +1,22 @@
-import { ACCOUNTING_STORAGE_KEY } from './storage'
-import { CASH_STORAGE_KEY } from './cash/storage'
-import { HR_STORAGE_KEY } from './hr/storage'
-import { INVENTORY_KEY, INVENTORY_STORAGE_KEYS } from './inventory/storage'
+import { getBrand, storageKey } from './brand'
+import { accountingStorageKey } from './storage'
+import { cashStorageKey } from './cash/storage'
+import { hrStorageKey } from './hr/storage'
+import { INVENTORY_BASE_KEYS, inventoryKeyMap, inventoryStorageKeys } from './inventory/storage'
 
 export const FULL_BACKUP_KIND = 'shawarma-full-backup'
 export const FULL_BACKUP_VERSION = 1
 
-export const ALL_STORAGE_KEYS = [
-  ACCOUNTING_STORAGE_KEY,
-  CASH_STORAGE_KEY,
-  HR_STORAGE_KEY,
-  ...INVENTORY_STORAGE_KEYS,
-] as const
+export function allStorageKeys(): string[] {
+  return [accountingStorageKey(), cashStorageKey(), hrStorageKey(), ...inventoryStorageKeys()]
+}
 
 export type RestoreKind = 'full' | 'inventory'
 
 export type FullBackup = {
   kind: typeof FULL_BACKUP_KIND
   version: number
+  brand?: string
   exportedAt: string
   stores: Record<string, unknown>
 }
@@ -35,14 +34,31 @@ function parseStored(raw: string | null): unknown {
   }
 }
 
+function baseKeys(): string[] {
+  return [
+    'shawarma-accounting-aug-2026-v1',
+    'daily-cash-ledger-aug-2026-v1',
+    'shawarma-hr-employees-v1',
+    ...INVENTORY_BASE_KEYS,
+  ]
+}
+
+function readStore(stores: Record<string, unknown>, base: string): { found: boolean; value: unknown } {
+  if (base in stores) return { found: true, value: stores[base] }
+  const scoped = storageKey(base)
+  if (scoped in stores) return { found: true, value: stores[scoped] }
+  return { found: false, value: undefined }
+}
+
 export function collectBackup(): FullBackup {
   const stores: Record<string, unknown> = {}
-  for (const key of ALL_STORAGE_KEYS) {
-    stores[key] = parseStored(localStorage.getItem(key))
+  for (const base of baseKeys()) {
+    stores[base] = parseStored(localStorage.getItem(storageKey(base)))
   }
   return {
     kind: FULL_BACKUP_KIND,
     version: FULL_BACKUP_VERSION,
+    brand: getBrand().id,
     exportedAt: new Date().toISOString(),
     stores,
   }
@@ -55,7 +71,7 @@ export function downloadBackup(): void {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `shawarma-backup-${new Date().toISOString().slice(0, 10)}.json`
+  a.download = `${getBrand().backupFile}-${new Date().toISOString().slice(0, 10)}.json`
   a.click()
   URL.revokeObjectURL(url)
 }
@@ -102,13 +118,15 @@ function writeValue(key: string, value: unknown): void {
 function restoreFull(parsed: Record<string, unknown>): void {
   const stores = parsed.stores
   if (!isRecord(stores)) throw new Error('invalid-backup')
-  for (const key of ALL_STORAGE_KEYS) {
-    if (!(key in stores)) continue
-    writeValue(key, stores[key])
+  for (const base of baseKeys()) {
+    const hit = readStore(stores, base)
+    if (!hit.found) continue
+    writeValue(storageKey(base), hit.value)
   }
 }
 
 function restoreInventory(parsed: Record<string, unknown>): void {
+  const keys = inventoryKeyMap()
   const data = isRecord(parsed.data)
     ? {
         wasita: parsed.data.wasita ?? {},
@@ -118,12 +136,12 @@ function restoreInventory(parsed: Record<string, unknown>): void {
         wasita: parsed.wasita ?? {},
         beirut: parsed.beirut ?? {},
       }
-  writeValue(INVENTORY_KEY.data, data)
-  if ('prices' in parsed) writeValue(INVENTORY_KEY.prices, parsed.prices ?? { wasita: {}, beirut: {} })
-  if ('extras' in parsed) writeValue(INVENTORY_KEY.extras, parsed.extras ?? [])
-  if ('units' in parsed) writeValue(INVENTORY_KEY.units, parsed.units ?? {})
-  if ('removedIds' in parsed) writeValue(INVENTORY_KEY.removed, parsed.removedIds ?? [])
-  if ('meta' in parsed) writeValue(INVENTORY_KEY.meta, parsed.meta ?? {})
+  writeValue(keys.data, data)
+  if ('prices' in parsed) writeValue(keys.prices, parsed.prices ?? { wasita: {}, beirut: {} })
+  if ('extras' in parsed) writeValue(keys.extras, parsed.extras ?? [])
+  if ('units' in parsed) writeValue(keys.units, parsed.units ?? {})
+  if ('removedIds' in parsed) writeValue(keys.removed, parsed.removedIds ?? [])
+  if ('meta' in parsed) writeValue(keys.meta, parsed.meta ?? {})
 }
 
 export function restoreBackup(parsed: unknown): RestoreKind {
