@@ -192,10 +192,11 @@ export function inStoreSales(day: SalesDay | undefined): number {
   return tillTotal(day)
 }
 
-/** إجمالي المبيعات مع التطبيقات = المبيعات داخل المحل + التطبيقات − المشتريات */
-export function totalWithApps(day: SalesDay | undefined): number {
+/** إجمالي المبيعات مع التطبيقات = المبيعات داخل المحل + التطبيقات (− المشتريات في شارع الشاورما فقط) */
+export function totalWithApps(day: SalesDay | undefined, subtractPurchases = true): number {
   const s = normalizeSalesDay(day)
-  return roundMoney(inStoreSales(s) + s.deliveryApps - s.todayPurchases)
+  const purchases = subtractPurchases ? s.todayPurchases : 0
+  return roundMoney(inStoreSales(s) + s.deliveryApps - purchases)
 }
 
 /** صافي الجهاز = الجهاز − الفواتير الملغاة − الإعلانات (− المشتريات في شاورما البسيط) */
@@ -208,7 +209,7 @@ export function deviceNet(day: SalesDay | undefined, deductPurchases = false): n
 /** فائض أو عجز = إجمالي المبيعات مع التطبيقات − صافي الجهاز */
 export function surplusDeficit(day: SalesDay | undefined, deductPurchases = false): number {
   const s = normalizeSalesDay(day)
-  return roundMoney(totalWithApps(s) - deviceNet(s, deductPurchases))
+  return roundMoney(totalWithApps(s, !deductPurchases) - deviceNet(s, deductPurchases))
 }
 
 export function pad2(n: number): string {
@@ -241,8 +242,8 @@ export function formatMoney(value: number): string {
   }).format(value)
 }
 
-export function sumSalesDay(day: SalesDay | undefined): number {
-  return totalWithApps(day)
+export function sumSalesDay(day: SalesDay | undefined, subtractPurchases = true): number {
+  return totalWithApps(day, subtractPurchases)
 }
 
 export function sumExpenseDay(
@@ -323,7 +324,9 @@ export function calcBranchTotals(
     totalExpenses += sumExpenseDay(expenses, extraExpenses, hiddenKeys)
   }
 
-  const totalSales = roundMoney(totalInStore + totalApps - totalPurchases)
+  const totalSales = roundMoney(
+    totalInStore + totalApps - (deductPurchasesFromDevice ? 0 : totalPurchases),
+  )
   const variance = roundMoney(totalSales - totalDevice)
   const netProfitNoApps = roundMoney(totalInStore - totalPurchases - totalExpenses)
 

@@ -213,7 +213,7 @@ function App() {
   const currentBranchName = branchLabel(branch)
   const dayTill = tillTotal(sales)
   const dayInStore = inStoreSales(sales)
-  const dayWithApps = totalWithApps(sales)
+  const dayWithApps = totalWithApps(sales, !deductPurchasesFromDevice)
   const dayDeviceNet = deviceNet(sales, deductPurchasesFromDevice)
   const dayVariance = surplusDeficit(sales, deductPurchasesFromDevice)
   const dayExpenseTotal = sumExpenseDay(expenses, extras, hiddenKeys)
@@ -503,7 +503,11 @@ function App() {
             <strong>{formatMoney(dayInStore)}</strong>
           </div>
           <div className="day-total-bar">
-            <span>إجمالي المبيعات مع التطبيقات = المبيعات داخل المحل + التطبيقات − المشتريات</span>
+            <span>
+              {deductPurchasesFromDevice
+                ? 'إجمالي المبيعات مع التطبيقات = المبيعات داخل المحل + التطبيقات'
+                : 'إجمالي المبيعات مع التطبيقات = المبيعات داخل المحل + التطبيقات − المشتريات'}
+            </span>
             <strong>{formatMoney(dayWithApps)}</strong>
           </div>
 
@@ -833,7 +837,7 @@ function App() {
                   const purchases = row?.todayPurchases || 0
                   const netDevice = deviceNet(row, deductPurchasesFromDevice)
                   const inStore = inStoreSales(row)
-                  const withApps = sumSalesDay(row)
+                  const withApps = sumSalesDay(row, !deductPurchasesFromDevice)
                   const variance = surplusDeficit(row, deductPurchasesFromDevice)
                   const e = sumExpenseDay(branchData.expenses[k], extras, hiddenKeys)
                   const net = withApps - e
