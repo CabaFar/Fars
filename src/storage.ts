@@ -1,9 +1,12 @@
+import { storageKey } from './brand'
 import type { AppData, BranchId, ExtraExpense, SalesDay } from './types'
 import { emptyAppData, emptyBranch, normalizeSalesDay } from './types'
 
 /** نفس المفتاح السابق حتى تبقى بيانات أغسطس ٢٠٢٦ عند التنقل بين الشهور */
 const STORAGE_KEY = 'shawarma-accounting-aug-2026-v1'
-export { STORAGE_KEY as ACCOUNTING_STORAGE_KEY }
+export function accountingStorageKey() {
+  return storageKey(STORAGE_KEY)
+}
 
 function normalizeBranch(raw: AppData[BranchId] | undefined) {
   const base = emptyBranch()
@@ -43,7 +46,7 @@ function normalizeExpenseLabels(raw: unknown): Record<string, string> {
 
 export function loadData(): AppData {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = localStorage.getItem(accountingStorageKey())
     if (!raw) return emptyAppData()
     const parsed = JSON.parse(raw) as Partial<AppData>
     return {
@@ -58,5 +61,5 @@ export function loadData(): AppData {
 }
 
 export function saveData(data: AppData): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+  localStorage.setItem(accountingStorageKey(), JSON.stringify(data))
 }

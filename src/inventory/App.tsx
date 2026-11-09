@@ -10,6 +10,7 @@ import {
   type Unit,
 } from './catalog'
 import { BackupBar } from '../BackupBar'
+import { getBrand } from '../brand'
 import {
   exportInventory,
   importInventory,
@@ -365,7 +366,7 @@ function InventoryApp() {
             <span />
           </span>
           <div>
-            <h1>مخزون شاورما</h1>
+            <h1>مخزون {getBrand().name}</h1>
             <p>الموجود الآن · الجديد · السعر · المورد</p>
           </div>
         </div>
@@ -1019,7 +1020,9 @@ function InventoryApp() {
       )}
 
       <section className="inv-print-only" aria-hidden>
-        <h1>ورقة جرد شاورما — {BRANCHES.find((b) => b.id === branch)?.name}</h1>
+        <h1>
+          ورقة جرد {getBrand().name} — {BRANCHES.find((b) => b.id === branch)?.name}
+        </h1>
         <p>
           {weekday} {day} / {month + 1} / {year}
         </p>

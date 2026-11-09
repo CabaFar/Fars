@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { BackupBar } from '../BackupBar'
+import { getBrand } from '../brand'
 import {
   employeesForMonth,
   ensureMonth,
@@ -217,7 +218,9 @@ function HrApp() {
           <span className="hr-mark" aria-hidden />
           <div>
             <h1>الموارد البشرية</h1>
-            <p>إجمالي الرواتب بدون الخصومات والسلف · سجل شهري محفوظ</p>
+            <p>
+              {getBrand().name} · إجمالي الرواتب بدون الخصومات والسلف · سجل شهري محفوظ
+            </p>
           </div>
         </div>
         <nav className="hr-links" aria-label="صفحات النظام">

@@ -1,13 +1,16 @@
+import { storageKey } from '../brand'
 import type { CashAppData } from './types'
 import { emptyCashAppData, normalizeCashDay } from './types'
 
 /** مفتاح تخزين مستقل لكل الأشهر — يحفظ بيانات أغسطس السابقة أيضاً */
 const STORAGE_KEY = 'daily-cash-ledger-aug-2026-v1'
-export { STORAGE_KEY as CASH_STORAGE_KEY }
+export function cashStorageKey() {
+  return storageKey(STORAGE_KEY)
+}
 
 export function loadCashData(): CashAppData {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = localStorage.getItem(cashStorageKey())
     if (!raw) return emptyCashAppData()
     const parsed = JSON.parse(raw) as CashAppData
     const normalizeBranch = (branch: CashAppData[keyof CashAppData] | undefined) => {
@@ -27,5 +30,5 @@ export function loadCashData(): CashAppData {
 }
 
 export function saveCashData(data: CashAppData): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+  localStorage.setItem(cashStorageKey(), JSON.stringify(data))
 }
