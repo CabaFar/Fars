@@ -12,6 +12,7 @@ import {
   emptyExpenses,
   emptySales,
   expenseFieldList,
+  expenseMonthTotals,
   formatMoney,
   inStoreSales,
   monthLabel,
@@ -165,6 +166,7 @@ function App() {
   }
 
   const expenseFields = expenseFieldList(data)
+  const monthExpenseByItem = expenseMonthTotals(branchData.expenses, expenseFields, year, month)
   const extras = data.extraExpenses
   const wasitaTotals = calcBranchTotals(data.wasita, year, month, extras)
   const beirutTotals = calcBranchTotals(data.beirut, year, month, extras)
@@ -474,9 +476,9 @@ function App() {
           </div>
           <div className="fields">
             {expenseFields.map((field) => (
-              <label key={field.key} className="field">
+              <label key={field.key} className="field expense-field">
                 <span className="field-label-row">
-                  {field.label}
+                  <span className="field-name">{field.label}</span>
                   <button
                     type="button"
                     className="icon-edit"
@@ -488,6 +490,9 @@ function App() {
                   >
                     <EditIcon />
                   </button>
+                </span>
+                <span className="field-month-total">
+                  إجمالي الشهر: {formatMoney(monthExpenseByItem[field.key] || 0)}
                 </span>
                 <input
                   type="number"
@@ -503,6 +508,21 @@ function App() {
           <div className="day-total-bar">
             <span>إجمالي مصروفات هذا اليوم</span>
             <strong>{formatMoney(dayExpenseTotal)}</strong>
+          </div>
+          <div className="expense-month-panel">
+            <h4>إجمالي كل صنف خلال {currentMonthLabel}</h4>
+            <ul>
+              {expenseFields.map((field) => (
+                <li key={field.key}>
+                  <span>{field.label}</span>
+                  <strong>{formatMoney(monthExpenseByItem[field.key] || 0)}</strong>
+                </li>
+              ))}
+            </ul>
+            <div className="expense-month-grand">
+              <span>إجمالي المصروفات</span>
+              <strong>{formatMoney(currentTotals.totalExpenses)}</strong>
+            </div>
           </div>
         </section>
       )}
