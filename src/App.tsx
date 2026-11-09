@@ -176,8 +176,24 @@ function App() {
   const monthExpenseByItem = expenseMonthTotals(branchData.expenses, expenseFields, year, month)
   const wasitaExpenseByItem = expenseMonthTotals(data.wasita.expenses, expenseFields, year, month)
   const beirutExpenseByItem = expenseMonthTotals(data.beirut.expenses, expenseFields, year, month)
-  const wasitaTotals = calcBranchTotals(data.wasita, year, month, extras, hiddenKeys)
-  const beirutTotals = calcBranchTotals(data.beirut, year, month, extras, hiddenKeys)
+  const singleBranch = isSingleBranch()
+  const deductPurchasesFromDevice = !singleBranch
+  const wasitaTotals = calcBranchTotals(
+    data.wasita,
+    year,
+    month,
+    extras,
+    hiddenKeys,
+    deductPurchasesFromDevice,
+  )
+  const beirutTotals = calcBranchTotals(
+    data.beirut,
+    year,
+    month,
+    extras,
+    hiddenKeys,
+    deductPurchasesFromDevice,
+  )
   const grand = {
     totalSales: wasitaTotals.totalSales + beirutTotals.totalSales,
     totalDevice: wasitaTotals.totalDevice + beirutTotals.totalDevice,
@@ -193,14 +209,13 @@ function App() {
     netProfitNoApps: wasitaTotals.netProfitNoApps + beirutTotals.netProfitNoApps,
   }
   const currentTotals = branch === 'wasita' ? wasitaTotals : beirutTotals
-  const singleBranch = isSingleBranch()
   const headlineTotals = singleBranch ? wasitaTotals : grand
   const currentBranchName = branchLabel(branch)
   const dayTill = tillTotal(sales)
   const dayInStore = inStoreSales(sales)
   const dayWithApps = totalWithApps(sales)
-  const dayDeviceNet = deviceNet(sales)
-  const dayVariance = surplusDeficit(sales)
+  const dayDeviceNet = deviceNet(sales, deductPurchasesFromDevice)
+  const dayVariance = surplusDeficit(sales, deductPurchasesFromDevice)
   const dayExpenseTotal = sumExpenseDay(expenses, extras, hiddenKeys)
 
   const hasDayData = (day: number) => {
@@ -418,9 +433,24 @@ function App() {
                   onChange={(e) => updateSales('ads', parseNum(e.target.value))}
                 />
               </label>
+              {deductPurchasesFromDevice && (
+                <label className="field">
+                  <span>المشتريات</span>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    value={sales.todayPurchases || ''}
+                    placeholder="0"
+                    onChange={(e) => updateSales('todayPurchases', parseNum(e.target.value))}
+                  />
+                </label>
+              )}
             </div>
             <p className="group-subtotal">
-              صافي الجهاز = الجهاز − الفواتير الملغاة − الإعلانات:{' '}
+              {deductPurchasesFromDevice
+                ? 'صافي الجهاز = الجهاز − الفواتير الملغاة − الإعلانات − المشتريات: '
+                : 'صافي الجهاز = الجهاز − الفواتير الملغاة − الإعلانات: '}
               <b>{formatMoney(dayDeviceNet)}</b>
             </p>
           </article>
@@ -448,9 +478,11 @@ function App() {
           </article>
 
           <article className="sales-group recorded-group">
-            <h4>المشتريات والتطبيقات</h4>
+            <h4>{deductPurchasesFromDevice ? 'التطبيقات' : 'المشتريات والتطبيقات'}</h4>
             <div className="fields">
-              {EXTRA_SALES_FIELDS.map((field) => (
+              {EXTRA_SALES_FIELDS.filter(
+                (field) => !(deductPurchasesFromDevice && field.key === 'todayPurchases'),
+              ).map((field) => (
                 <label key={field.key} className="field">
                   <span>{field.label}</span>
                   <input
@@ -782,6 +814,7 @@ function App() {
                   <th>الجهاز</th>
                   <th>ملغاة</th>
                   <th>إعلانات</th>
+                  {deductPurchasesFromDevice && <th>مشتريات</th>}
                   <th>صافي الجهاز</th>
                   <th>داخل المحل</th>
                   <th>مع التطبيقات</th>
@@ -797,10 +830,11 @@ function App() {
                   const device = row?.device || 0
                   const canceled = row?.canceledInvoices || 0
                   const ads = row?.ads || 0
-                  const netDevice = deviceNet(row)
+                  const purchases = row?.todayPurchases || 0
+                  const netDevice = deviceNet(row, deductPurchasesFromDevice)
                   const inStore = inStoreSales(row)
                   const withApps = sumSalesDay(row)
-                  const variance = surplusDeficit(row)
+                  const variance = surplusDeficit(row, deductPurchasesFromDevice)
                   const e = sumExpenseDay(branchData.expenses[k], extras, hiddenKeys)
                   const net = withApps - e
                   const wd = ARABIC_DAYS[new Date(year, month, day).getDay()]
@@ -811,6 +845,7 @@ function App() {
                       <td>{formatMoney(device)}</td>
                       <td>{formatMoney(canceled)}</td>
                       <td>{formatMoney(ads)}</td>
+                      {deductPurchasesFromDevice && <td>{formatMoney(purchases)}</td>}
                       <td>{formatMoney(netDevice)}</td>
                       <td>{formatMoney(inStore)}</td>
                       <td>{formatMoney(withApps)}</td>
@@ -828,11 +863,15 @@ function App() {
                   <td colSpan={2}>المجموع</td>
                   <td>
                     {formatMoney(
-                      currentTotals.totalDevice + currentTotals.totalCanceled + currentTotals.totalAds,
+                      currentTotals.totalDevice +
+                        currentTotals.totalCanceled +
+                        currentTotals.totalAds +
+                        (deductPurchasesFromDevice ? currentTotals.totalPurchases : 0),
                     )}
                   </td>
                   <td>{formatMoney(currentTotals.totalCanceled)}</td>
                   <td>{formatMoney(currentTotals.totalAds)}</td>
+                  {deductPurchasesFromDevice && <td>{formatMoney(currentTotals.totalPurchases)}</td>}
                   <td>{formatMoney(currentTotals.totalDevice)}</td>
                   <td>{formatMoney(currentTotals.totalInStore)}</td>
                   <td>{formatMoney(currentTotals.totalSales)}</td>

@@ -198,16 +198,17 @@ export function totalWithApps(day: SalesDay | undefined): number {
   return roundMoney(inStoreSales(s) + s.deliveryApps - s.todayPurchases)
 }
 
-/** صافي الجهاز = الجهاز − الفواتير الملغاة − الإعلانات */
-export function deviceNet(day: SalesDay | undefined): number {
+/** صافي الجهاز = الجهاز − الفواتير الملغاة − الإعلانات (− المشتريات في شاورما البسيط) */
+export function deviceNet(day: SalesDay | undefined, deductPurchases = false): number {
   const s = normalizeSalesDay(day)
-  return roundMoney(s.device - s.canceledInvoices - s.ads)
+  const purchases = deductPurchases ? s.todayPurchases : 0
+  return roundMoney(s.device - s.canceledInvoices - s.ads - purchases)
 }
 
 /** فائض أو عجز = إجمالي المبيعات مع التطبيقات − صافي الجهاز */
-export function surplusDeficit(day: SalesDay | undefined): number {
+export function surplusDeficit(day: SalesDay | undefined, deductPurchases = false): number {
   const s = normalizeSalesDay(day)
-  return roundMoney(totalWithApps(s) - deviceNet(s))
+  return roundMoney(totalWithApps(s) - deviceNet(s, deductPurchases))
 }
 
 export function pad2(n: number): string {
@@ -297,6 +298,7 @@ export function calcBranchTotals(
   month: number,
   extraExpenses: ExtraExpense[] = [],
   hiddenKeys: string[] = [],
+  deductPurchasesFromDevice = false,
 ) {
   const days = daysInMonth(year, month)
   let totalExpenses = 0
@@ -312,7 +314,7 @@ export function calcBranchTotals(
     const sales = data.sales[key]
     const expenses = data.expenses[key]
     const day = normalizeSalesDay(sales)
-    totalDevice += deviceNet(day)
+    totalDevice += deviceNet(day, deductPurchasesFromDevice)
     totalCanceled += day.canceledInvoices
     totalAds += day.ads
     totalInStore += inStoreSales(day)
