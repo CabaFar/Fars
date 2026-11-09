@@ -44,6 +44,11 @@ function normalizeExpenseLabels(raw: unknown): Record<string, string> {
   return out
 }
 
+function normalizeHiddenExpenseKeys(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return []
+  return [...new Set(raw.filter((key): key is string => typeof key === 'string' && key.trim() !== ''))]
+}
+
 export function loadData(): AppData {
   try {
     const raw = localStorage.getItem(accountingStorageKey())
@@ -54,6 +59,7 @@ export function loadData(): AppData {
       beirut: normalizeBranch(parsed.beirut),
       extraExpenses: normalizeExtraExpenses(parsed.extraExpenses),
       expenseLabels: normalizeExpenseLabels(parsed.expenseLabels),
+      hiddenExpenseKeys: normalizeHiddenExpenseKeys(parsed.hiddenExpenseKeys),
     }
   } catch {
     return emptyAppData()

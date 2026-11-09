@@ -142,6 +142,10 @@
   animation: rise 0.7s ease both 0.08s;
 }
 
+.kpi-row.four {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .kpi {
   padding: 1rem 1.1rem;
   border: 1px solid var(--red-line);
@@ -469,6 +473,13 @@
   gap: 0.4rem;
 }
 
+.field-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex: 0 0 auto;
+}
+
 .field .field-name {
   color: var(--ink);
   font-weight: 600;
@@ -494,6 +505,10 @@
   color: var(--red-dark);
 }
 
+.icon-delete {
+  color: var(--neg);
+}
+
 .icon-add {
   border-radius: 999px;
   padding: 0.45rem 0.85rem;
@@ -514,6 +529,12 @@
   background: var(--red);
   color: #fff;
   border-color: var(--red);
+}
+
+.icon-delete:hover {
+  background: var(--neg);
+  color: #fff;
+  border-color: var(--neg);
 }
 
 .acct-modal-backdrop {
@@ -675,6 +696,33 @@
   color: var(--ink);
 }
 
+.expense-both-wrap {
+  overflow-x: auto;
+}
+
+.expense-both-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.expense-both-table th,
+.expense-both-table td {
+  text-align: right;
+  padding: 0.5rem 0.4rem;
+  border-bottom: 1px solid var(--red-line);
+  font-size: 0.92rem;
+}
+
+.expense-both-table th {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.expense-both-table td:last-child,
+.expense-both-table th:last-child {
+  color: var(--red-dark);
+}
+
 .expense-month-grand {
   margin-top: 0.85rem;
   padding-top: 0.75rem;
@@ -809,8 +857,15 @@
   font-size: 0.85rem;
 }
 
+@media (max-width: 1100px) {
+  .kpi-row.four {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 860px) {
   .kpi-row,
+  .kpi-row.four,
   .summary-grid {
     grid-template-columns: 1fr;
   }
