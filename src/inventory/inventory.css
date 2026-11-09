@@ -109,6 +109,10 @@
   gap: 0.75rem;
 }
 
+.inv-grand-grid.single {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .inv-grand-grid article {
   background: #fff;
   border: 1px solid var(--red-line);

@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import {
   ARABIC_DAYS,
-  BRANCHES,
   dateKeyFromParts,
   daysInMonth,
   formatMoney,
@@ -13,7 +12,7 @@ import {
   type CashMoneyField,
 } from './types'
 import { BackupBar } from '../BackupBar'
-import { getBrand } from '../brand'
+import { getBrand, isSingleBranch, visibleBranches } from '../brand'
 import { loadCashData, saveCashData } from './storage'
 
 function todayParts() {
@@ -103,23 +102,27 @@ function CashApp() {
   const beirutExpenseTotal = sumField(data.beirut, 'cashExpense', year, month)
   const grandCash = wasitaCashTotal + beirutCashTotal
   const grandExpense = wasitaExpenseTotal + beirutExpenseTotal
-  const grandNet = grandCash - grandExpense
 
-  const dayCash = wasitaDay.cash + beirutDay.cash
-  const dayExpense = wasitaDay.cashExpense + beirutDay.cashExpense
+  const singleBranch = isSingleBranch()
+  const branches = visibleBranches()
+  const dayCash = singleBranch ? wasitaDay.cash : wasitaDay.cash + beirutDay.cash
+  const dayExpense = singleBranch
+    ? wasitaDay.cashExpense
+    : wasitaDay.cashExpense + beirutDay.cashExpense
   const dayNet = dayCash - dayExpense
+  const monthCash = singleBranch ? wasitaCashTotal : grandCash
+  const monthExpense = singleBranch ? wasitaExpenseTotal : grandExpense
+  const monthNet = monthCash - monthExpense
 
   const hasDayData = (day: number) => {
     const k = dateKeyFromParts(year, month, day)
     const w = normalizeCashDay(data.wasita[k])
     const b = normalizeCashDay(data.beirut[k])
+    const wasitaFilled =
+      w.cash !== 0 || w.cashExpense !== 0 || w.expenseNote.trim()
+    if (singleBranch) return Boolean(wasitaFilled)
     return Boolean(
-      w.cash !== 0 ||
-        w.cashExpense !== 0 ||
-        w.expenseNote.trim() ||
-        b.cash !== 0 ||
-        b.cashExpense !== 0 ||
-        b.expenseNote.trim(),
+      wasitaFilled || b.cash !== 0 || b.cashExpense !== 0 || b.expenseNote.trim(),
     )
   }
 
@@ -134,7 +137,9 @@ function CashApp() {
           <div>
             <h1>{getBrand().titles.cash}</h1>
             <p>
-              كل الأشهر · فرع الوسيطاء وفرع بيروت · {monthLabel}
+              {singleBranch
+                ? `كل الأشهر · ${getBrand().name} · ${monthLabel}`
+                : `كل الأشهر · فرع الوسيطاء وفرع بيروت · ${monthLabel}`}
             </p>
           </div>
         </div>
@@ -155,20 +160,22 @@ function CashApp() {
 
       <section className="cash-kpis" aria-label="ملخص الكاش">
         <article>
-          <span>كاش الوسيطاء — {monthLabel}</span>
+          <span>{singleBranch ? `الكاش — ${monthLabel}` : `كاش الوسيطاء — ${monthLabel}`}</span>
           <strong className="in">{formatMoney(wasitaCashTotal)}</strong>
         </article>
+        {!singleBranch && (
         <article>
           <span>كاش بيروت — {monthLabel}</span>
           <strong className="in">{formatMoney(beirutCashTotal)}</strong>
         </article>
+        )}
         <article>
           <span>مصروفات الكاش</span>
-          <strong className="out">{formatMoney(grandExpense)}</strong>
+          <strong className="out">{formatMoney(monthExpense)}</strong>
         </article>
         <article className="accent">
           <span>صافي الكاش</span>
-          <strong className={grandNet >= 0 ? 'in' : 'out'}>{formatMoney(grandNet)}</strong>
+          <strong className={monthNet >= 0 ? 'in' : 'out'}>{formatMoney(monthNet)}</strong>
         </article>
       </section>
 
@@ -221,13 +228,13 @@ function CashApp() {
 
       <section className="cash-entry">
         <h3>تسجيل اليوم — الكاش ومصروفات الكاش</h3>
-        <div className="cash-cards">
-          {BRANCHES.map((branch) => {
+        <div className={`cash-cards${singleBranch ? ' single' : ''}`}>
+          {branches.map((branch) => {
             const day: CashDay = branch.id === 'wasita' ? wasitaDay : beirutDay
             const net = day.cash - day.cashExpense
             return (
               <article key={branch.id} className="cash-card">
-                <h4>{branch.name}</h4>
+                {!singleBranch && <h4>{branch.name}</h4>}
                 <label className="cash-field">
                   <span>الكاش</span>
                   <input
@@ -262,7 +269,7 @@ function CashApp() {
                   />
                 </label>
                 <div className="cash-net">
-                  <span>صافي الفرع اليوم</span>
+                  <span>{singleBranch ? 'صافي اليوم' : 'صافي الفرع اليوم'}</span>
                   <strong className={net >= 0 ? 'in' : 'out'}>{formatMoney(net)}</strong>
                 </div>
               </article>
@@ -270,6 +277,7 @@ function CashApp() {
           })}
         </div>
 
+        {!singleBranch && (
         <div className="cash-day-sum">
           <div>
             <span>كاش الفرعين</span>
@@ -284,6 +292,7 @@ function CashApp() {
             <strong className={dayNet >= 0 ? 'in' : 'out'}>{formatMoney(dayNet)}</strong>
           </div>
         </div>
+        )}
       </section>
 
       <section className="cash-ledger">
@@ -294,13 +303,24 @@ function CashApp() {
               <tr>
                 <th>اليوم</th>
                 <th>اليوم الأسبوعي</th>
-                <th>كاش الوسيطاء</th>
-                <th>مصروف الوسيطاء</th>
-                <th>ملاحظات الوسيطاء</th>
-                <th>كاش بيروت</th>
-                <th>مصروف بيروت</th>
-                <th>ملاحظات بيروت</th>
-                <th>صافي الفرعين</th>
+                {singleBranch ? (
+                  <>
+                    <th>الكاش</th>
+                    <th>المصروف</th>
+                    <th>الملاحظات</th>
+                    <th>الصافي</th>
+                  </>
+                ) : (
+                  <>
+                    <th>كاش الوسيطاء</th>
+                    <th>مصروف الوسيطاء</th>
+                    <th>ملاحظات الوسيطاء</th>
+                    <th>كاش بيروت</th>
+                    <th>مصروف بيروت</th>
+                    <th>ملاحظات بيروت</th>
+                    <th>صافي الفرعين</th>
+                  </>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -308,7 +328,9 @@ function CashApp() {
                 const k = dateKeyFromParts(year, month, day)
                 const w = normalizeCashDay(data.wasita[k])
                 const b = normalizeCashDay(data.beirut[k])
-                const net = w.cash + b.cash - w.cashExpense - b.cashExpense
+                const net = singleBranch
+                  ? w.cash - w.cashExpense
+                  : w.cash + b.cash - w.cashExpense - b.cashExpense
                 const wd = ARABIC_DAYS[new Date(year, month, day).getDay()]
                 return (
                   <tr
@@ -323,11 +345,15 @@ function CashApp() {
                       {formatMoney(w.cashExpense)}
                     </td>
                     <td className="note-cell">{w.expenseNote || '—'}</td>
-                    <td className={b.cash > 0 ? 'in' : ''}>{formatMoney(b.cash)}</td>
-                    <td className={b.cashExpense > 0 ? 'out' : ''}>
-                      {formatMoney(b.cashExpense)}
-                    </td>
-                    <td className="note-cell">{b.expenseNote || '—'}</td>
+                    {!singleBranch && (
+                      <>
+                        <td className={b.cash > 0 ? 'in' : ''}>{formatMoney(b.cash)}</td>
+                        <td className={b.cashExpense > 0 ? 'out' : ''}>
+                          {formatMoney(b.cashExpense)}
+                        </td>
+                        <td className="note-cell">{b.expenseNote || '—'}</td>
+                      </>
+                    )}
                     <td className={net >= 0 ? 'in' : 'out'}>{formatMoney(net)}</td>
                   </tr>
                 )
@@ -339,10 +365,14 @@ function CashApp() {
                 <td>{formatMoney(wasitaCashTotal)}</td>
                 <td>{formatMoney(wasitaExpenseTotal)}</td>
                 <td />
-                <td>{formatMoney(beirutCashTotal)}</td>
-                <td>{formatMoney(beirutExpenseTotal)}</td>
-                <td />
-                <td className={grandNet >= 0 ? 'in' : 'out'}>{formatMoney(grandNet)}</td>
+                {!singleBranch && (
+                  <>
+                    <td>{formatMoney(beirutCashTotal)}</td>
+                    <td>{formatMoney(beirutExpenseTotal)}</td>
+                    <td />
+                  </>
+                )}
+                <td className={monthNet >= 0 ? 'in' : 'out'}>{formatMoney(monthNet)}</td>
               </tr>
             </tfoot>
           </table>

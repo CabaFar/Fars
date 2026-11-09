@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import {
   ARABIC_DAYS,
-  BRANCHES,
   DETAIL_FIELDS,
   DEVICE_FIELD,
   EXTRA_SALES_FIELDS,
@@ -28,7 +27,7 @@ import {
   type SalesKey,
 } from './types'
 import { BackupBar } from './BackupBar'
-import { getBrand } from './brand'
+import { branchLabel, getBrand, isSingleBranch, visibleBranches } from './brand'
 import { loadData, saveData } from './storage'
 
 type Tab = 'sales' | 'expenses' | 'summary'
@@ -184,6 +183,9 @@ function App() {
       (wasitaTotals.totalExpenses + beirutTotals.totalExpenses),
   }
   const currentTotals = branch === 'wasita' ? wasitaTotals : beirutTotals
+  const singleBranch = isSingleBranch()
+  const headlineTotals = singleBranch ? wasitaTotals : grand
+  const currentBranchName = branchLabel(branch)
   const dayTill = tillTotal(sales)
   const dayInStore = inStoreSales(sales)
   const dayWithApps = totalWithApps(sales)
@@ -210,7 +212,7 @@ function App() {
           <span className="brand-mark" aria-hidden />
           <div>
             <h1>{getBrand().name} — المحاسبة</h1>
-            <p>فرع الوسيطاء وفرع بيروت</p>
+            <p>{singleBranch ? 'فرع واحد' : 'فرع الوسيطاء وفرع بيروت'}</p>
           </div>
         </div>
         <nav className="site-nav" aria-label="صفحات النظام">
@@ -247,22 +249,23 @@ function App() {
       <section className="kpi-row" aria-label="ملخص سريع">
         <article className="kpi">
           <span>إجمالي المبيعات</span>
-          <strong className="pos">{formatMoney(grand.totalSales)}</strong>
+          <strong className="pos">{formatMoney(headlineTotals.totalSales)}</strong>
         </article>
         <article className="kpi">
           <span>إجمالي المصروفات</span>
-          <strong className="neg">{formatMoney(grand.totalExpenses)}</strong>
+          <strong className="neg">{formatMoney(headlineTotals.totalExpenses)}</strong>
         </article>
         <article className="kpi accent">
-          <span>صافي الربح (الفرعين)</span>
-          <strong className={grand.netProfit >= 0 ? 'pos' : 'neg'}>
-            {formatMoney(grand.netProfit)}
+          <span>{singleBranch ? 'صافي الربح' : 'صافي الربح (الفرعين)'}</span>
+          <strong className={headlineTotals.netProfit >= 0 ? 'pos' : 'neg'}>
+            {formatMoney(headlineTotals.netProfit)}
           </strong>
         </article>
       </section>
 
+      {!singleBranch && (
       <nav className="branch-switch" aria-label="اختيار الفرع">
-        {BRANCHES.map((b) => (
+        {visibleBranches().map((b) => (
           <button
             key={b.id}
             type="button"
@@ -273,7 +276,9 @@ function App() {
           </button>
         ))}
       </nav>
+      )}
 
+      {!singleBranch && (
       <div className="branch-mini">
         <span>
           مبيعات الفرع: <b>{formatMoney(currentTotals.totalSales)}</b>
@@ -288,6 +293,7 @@ function App() {
           </b>
         </span>
       </div>
+      )}
 
       <nav className="tabs" aria-label="الأقسام">
         <button
@@ -354,7 +360,9 @@ function App() {
 
       {tab === 'sales' && (
         <section className="form-section">
-          <h3>إدخال مبيعات اليوم — {BRANCHES.find((b) => b.id === branch)?.name}</h3>
+          <h3>
+            إدخال مبيعات اليوم{singleBranch ? '' : ` — ${currentBranchName}`}
+          </h3>
 
           <article className="sales-group">
             <h4>الجهاز</h4>
@@ -468,7 +476,9 @@ function App() {
       {tab === 'expenses' && (
         <section className="form-section">
           <div className="expense-head">
-            <h3>إدخال المشتريات والمصروفات — {BRANCHES.find((b) => b.id === branch)?.name}</h3>
+            <h3>
+              إدخال المشتريات والمصروفات{singleBranch ? '' : ` — ${currentBranchName}`}
+            </h3>
             <button type="button" className="icon-add" onClick={() => setExpenseEditor('add')}>
               <PlusIcon />
               إضافة بند
@@ -531,9 +541,9 @@ function App() {
         <section className="summary-section">
           <h3>التقرير الشهري — {currentMonthLabel}</h3>
 
-          <div className="summary-grid">
-            <article className="summary-card">
-              <h4>فرع الوسيطاء</h4>
+          <div className={`summary-grid${singleBranch ? ' single' : ''}`}>
+            <article className={`summary-card${singleBranch ? ' grand' : ''}`}>
+              <h4>{singleBranch ? getBrand().name : 'فرع الوسيطاء'}</h4>
               <dl>
                 <div>
                   <dt>صافي الجهاز</dt>
@@ -574,6 +584,7 @@ function App() {
               </dl>
             </article>
 
+            {!singleBranch && (
             <article className="summary-card">
               <h4>فرع بيروت</h4>
               <dl>
@@ -615,7 +626,9 @@ function App() {
                 </div>
               </dl>
             </article>
+            )}
 
+            {!singleBranch && (
             <article className="summary-card grand">
               <h4>الإجمالي الكلي (الفرعين)</h4>
               <dl>
@@ -657,10 +670,11 @@ function App() {
                 </div>
               </dl>
             </article>
+            )}
           </div>
 
           <div className="month-table-wrap">
-            <h4>تفصيل الأيام — {BRANCHES.find((b) => b.id === branch)?.name}</h4>
+            <h4>تفصيل الأيام{singleBranch ? '' : ` — ${currentBranchName}`}</h4>
             <table className="month-table">
               <thead>
                 <tr>
