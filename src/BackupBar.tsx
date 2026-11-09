@@ -170,7 +170,7 @@ export function BackupBar() {
             </figure>
             <figure>
               <img src={`${import.meta.env.BASE_URL}guide/step2.png`} alt="الخطوة 2: نسخ Project URL ومفتاح anon" />
-              <figcaption>٢ — Settings ثم API Keys</figcaption>
+              <figcaption>٢ — المفتاح من API Keys</figcaption>
             </figure>
             <figure>
               <img src={`${import.meta.env.BASE_URL}guide/step3.png`} alt="الخطوة 3: الربط في صفحة شاورما" />
@@ -178,8 +178,9 @@ export function BackupBar() {
             </figure>
           </div>
           <p>
-            مرة واحدة: في SQL Editor شغّل أمر الجدول، ثم من Settings → API Keys انسخ Project URL ومفتاح anon
-            public أو publishable فقط.
+            رابط المشروع مو في API Keys. من شريط المتصفح إذا كان الرابط
+            supabase.com/dashboard/project/xxxx فرابط المشروع هو https://xxxx.supabase.co أو اضغط Connect أعلى
+            المشروع. المفتاح فقط من Settings → API Keys (anon أو publishable).
           </p>
           <label>
             رابط المشروع
