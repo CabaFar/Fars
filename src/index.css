@@ -709,6 +709,11 @@
   margin-bottom: 1.5rem;
 }
 
+.summary-grid.single {
+  grid-template-columns: 1fr;
+  max-width: 28rem;
+}
+
 .summary-card {
   padding: 1rem 1.1rem;
   border-radius: var(--radius);

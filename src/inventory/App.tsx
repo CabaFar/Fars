@@ -10,7 +10,7 @@ import {
   type Unit,
 } from './catalog'
 import { BackupBar } from '../BackupBar'
-import { getBrand } from '../brand'
+import { branchLabel, getBrand, isSingleBranch, visibleBranches } from '../brand'
 import {
   exportInventory,
   importInventory,
@@ -30,7 +30,6 @@ import {
 } from './storage'
 import {
   ARABIC_DAYS,
-  BRANCHES,
   consumedCost,
   consumedQty,
   dateKeyFromParts,
@@ -81,6 +80,8 @@ function InventoryApp() {
   const [cycle, setCycle] = useState<CycleFilter>('daily')
   const [query, setQuery] = useState('')
   const [savedFlash, setSavedFlash] = useState(false)
+  const singleBranch = isSingleBranch()
+  const currentBranchName = branchLabel(branch)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const totalDays = daysInMonth(year, month)
@@ -293,7 +294,9 @@ function InventoryApp() {
 
   const wasitaAvailableCount = stockRows.filter((row) => row.wasitaQty > 0).length
   const beirutAvailableCount = stockRows.filter((row) => row.beirutQty > 0).length
-  const bothAvailableCount = stockRows.filter((row) => row.totalQty > 0).length
+  const bothAvailableCount = stockRows.filter((row) =>
+    singleBranch ? row.wasitaQty > 0 : row.totalQty > 0,
+  ).length
 
   const wasitaDay = dayPurchaseFor('wasita')
   const beirutDay = dayPurchaseFor('beirut')
@@ -385,43 +388,53 @@ function InventoryApp() {
 
       <BackupBar />
 
-      <section className="inv-grand no-print" aria-label="كميات مخزون الفروع">
-        <h2>كميات المخزون المتوفرة بالفروع</h2>
-        <div className="inv-grand-grid">
+      <section className="inv-grand no-print" aria-label="كميات المخزون المتوفرة">
+        <h2>{singleBranch ? 'كميات المخزون المتوفرة' : 'كميات المخزون المتوفرة بالفروع'}</h2>
+        <div className={`inv-grand-grid${singleBranch ? ' single' : ''}`}>
           <article className="accent">
-            <span>أصناف متوفرة (الفرعين)</span>
+            <span>{singleBranch ? 'أصناف متوفرة' : 'أصناف متوفرة (الفرعين)'}</span>
             <strong>{bothAvailableCount}</strong>
           </article>
+          {!singleBranch && (
+            <>
+              <article>
+                <span>أصناف متوفرة — الوسيطاء</span>
+                <strong>{wasitaAvailableCount}</strong>
+              </article>
+              <article>
+                <span>أصناف متوفرة — بيروت</span>
+                <strong>{beirutAvailableCount}</strong>
+              </article>
+            </>
+          )}
           <article>
-            <span>أصناف متوفرة — الوسيطاء</span>
-            <strong>{wasitaAvailableCount}</strong>
+            <span>{singleBranch ? 'مشتريات اليوم' : 'مشتريات اليوم (الفرعين)'}</span>
+            <strong>{formatMoney(singleBranch ? wasitaDay : branchesDayTotal)} ر.س</strong>
           </article>
+          {!singleBranch && (
+            <>
+              <article>
+                <span>الوسيطاء — مشتريات اليوم</span>
+                <strong>{formatMoney(wasitaDay)} ر.س</strong>
+              </article>
+              <article>
+                <span>بيروت — مشتريات اليوم</span>
+                <strong>{formatMoney(beirutDay)} ر.س</strong>
+              </article>
+            </>
+          )}
           <article>
-            <span>أصناف متوفرة — بيروت</span>
-            <strong>{beirutAvailableCount}</strong>
-          </article>
-          <article>
-            <span>مشتريات اليوم (الفرعين)</span>
-            <strong>{formatMoney(branchesDayTotal)} ر.س</strong>
-          </article>
-          <article>
-            <span>الوسيطاء — مشتريات اليوم</span>
-            <strong>{formatMoney(wasitaDay)} ر.س</strong>
-          </article>
-          <article>
-            <span>بيروت — مشتريات اليوم</span>
-            <strong>{formatMoney(beirutDay)} ر.س</strong>
-          </article>
-          <article>
-            <span>مشتريات الشهر (الفرعين)</span>
-            <strong>{formatMoney(branchesMonthTotal)} ر.س</strong>
+            <span>{singleBranch ? 'مشتريات الشهر' : 'مشتريات الشهر (الفرعين)'}</span>
+            <strong>
+              {formatMoney(singleBranch ? monthPurchaseFor('wasita') : branchesMonthTotal)} ر.س
+            </strong>
           </article>
         </div>
       </section>
 
       <section className="inv-kpis no-print" aria-label="ملخص اليوم">
         <article className="accent">
-          <span>أصناف متوفرة بالفرع</span>
+          <span>{singleBranch ? 'أصناف متوفرة' : 'أصناف متوفرة بالفرع'}</span>
           <strong>{currentBranchAvailable}</strong>
         </article>
         <article>
@@ -445,8 +458,9 @@ function InventoryApp() {
       </section>
 
       <section className="inv-toolbar no-print">
+        {!singleBranch && (
         <nav className="inv-branches" aria-label="الفرع">
-          {BRANCHES.map((b) => (
+          {visibleBranches().map((b) => (
             <button
               key={b.id}
               type="button"
@@ -457,6 +471,7 @@ function InventoryApp() {
             </button>
           ))}
         </nav>
+        )}
         <nav className="inv-modes" aria-label="الوردية">
           <button
             type="button"
@@ -721,7 +736,7 @@ function InventoryApp() {
       {mode === 'prices' && (
         <section className="inv-sheet">
           <div className="inv-sheet-head">
-            <h3>أسعار الأصناف — {BRANCHES.find((b) => b.id === branch)?.name}</h3>
+            <h3>أسعار الأصناف{singleBranch ? '' : ` — ${currentBranchName}`}</h3>
             <p>سعر الوحدة بالريال حسب الوحدة المختارة (حبة · كيلو · كرتون · شد · تنك)</p>
           </div>
           {grouped.map(({ cat, items }) => (
@@ -784,9 +799,14 @@ function InventoryApp() {
       {mode === 'stock' && (
         <section className="inv-sheet">
           <div className="inv-sheet-head">
-            <h3>الكميات المتوفرة بالفروع — {weekday} {day}</h3>
+            <h3>
+              {singleBranch
+                ? `الكميات المتوفرة — ${weekday} ${day}`
+                : `الكميات المتوفرة بالفروع — ${weekday} ${day}`}
+            </h3>
             <p>
-              الكمية = الجرد إن وُجد، وإلا الموجود الآن + الجديد. يُحدَّث تلقائياً لكل فرع.
+              الكمية = الجرد إن وُجد، وإلا الموجود الآن + الجديد
+              {singleBranch ? '.' : '. يُحدَّث تلقائياً لكل فرع.'}
             </p>
           </div>
           <div className="inv-table-wrap">
@@ -795,9 +815,15 @@ function InventoryApp() {
                 <tr>
                   <th>الصنف</th>
                   <th>الوحدة</th>
-                  <th>الوسيطاء</th>
-                  <th>بيروت</th>
-                  <th>الإجمالي</th>
+                  {singleBranch ? (
+                    <th>الكمية</th>
+                  ) : (
+                    <>
+                      <th>الوسيطاء</th>
+                      <th>بيروت</th>
+                      <th>الإجمالي</th>
+                    </>
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -807,12 +833,18 @@ function InventoryApp() {
                   return (
                     <Fragment key={cat.id}>
                       <tr className="inv-stock-cat">
-                        <td colSpan={5}>{cat.name}</td>
+                        <td colSpan={singleBranch ? 3 : 5}>{cat.name}</td>
                       </tr>
                       {rowsForCat.map(({ item, wasitaQty, beirutQty, totalQty }) => (
                         <tr
                           key={item.id}
-                          className={totalQty <= 0 ? 'row-empty' : wasitaQty <= 0 || beirutQty <= 0 ? 'row-partial' : ''}
+                          className={
+                            (singleBranch ? wasitaQty : totalQty) <= 0
+                              ? 'row-empty'
+                              : !singleBranch && (wasitaQty <= 0 || beirutQty <= 0)
+                                ? 'row-partial'
+                                : ''
+                          }
                         >
                           <td>
                             <strong>{item.name}</strong>
@@ -821,12 +853,16 @@ function InventoryApp() {
                           <td className={wasitaQty <= 0 ? 'neg' : 'pos-qty'}>
                             {formatQty(wasitaQty, item.unit)}
                           </td>
-                          <td className={beirutQty <= 0 ? 'neg' : 'pos-qty'}>
-                            {formatQty(beirutQty, item.unit)}
-                          </td>
-                          <td>
-                            <strong>{formatQty(totalQty, item.unit)}</strong>
-                          </td>
+                          {!singleBranch && (
+                            <>
+                              <td className={beirutQty <= 0 ? 'neg' : 'pos-qty'}>
+                                {formatQty(beirutQty, item.unit)}
+                              </td>
+                              <td>
+                                <strong>{formatQty(totalQty, item.unit)}</strong>
+                              </td>
+                            </>
+                          )}
                         </tr>
                       ))}
                     </Fragment>
@@ -917,8 +953,9 @@ function InventoryApp() {
               تقرير {weekday} {day}
             </h3>
             <p>
-              {BRANCHES.find((b) => b.id === branch)?.name} · أصناف متوفرة {currentBranchAvailable} ·
-              مشتريات {formatMoney(purchaseCostTotal)} ر.س · متوفر بالفرعين {bothAvailableCount} صنف
+              {singleBranch ? getBrand().name : currentBranchName} · أصناف متوفرة{' '}
+              {currentBranchAvailable} · مشتريات {formatMoney(purchaseCostTotal)} ر.س
+              {singleBranch ? '' : ` · متوفر بالفرعين ${bothAvailableCount} صنف`}
             </p>
           </div>
           <div className="inv-report-grid">
@@ -988,8 +1025,10 @@ function InventoryApp() {
                 <b>تعديل صنف:</b> من زر «تعديل» لتغيير الاسم أو الوحدة أو القسم.
               </li>
               <li>
-                <b>كميات الفروع:</b> جدول تلقائي يعرض الكمية المتوفرة في الوسيطاء وبيروت والإجمالي لكل
-                صنف (الجرد إن وُجد، وإلا الموجود + الجديد).
+                <b>كميات المخزون:</b>{' '}
+                {singleBranch
+                  ? 'جدول تلقائي يعرض الكمية المتوفرة لكل صنف (الجرد إن وُجد، وإلا الموجود + الجديد).'
+                  : 'جدول تلقائي يعرض الكمية المتوفرة في الوسيطاء وبيروت والإجمالي لكل صنف (الجرد إن وُجد، وإلا الموجود + الجديد).'}
               </li>
             </ol>
           </div>
@@ -1021,7 +1060,8 @@ function InventoryApp() {
 
       <section className="inv-print-only" aria-hidden>
         <h1>
-          ورقة جرد {getBrand().name} — {BRANCHES.find((b) => b.id === branch)?.name}
+          ورقة جرد {getBrand().name}
+          {singleBranch ? '' : ` — ${currentBranchName}`}
         </h1>
         <p>
           {weekday} {day} / {month + 1} / {year}

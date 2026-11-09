@@ -4,6 +4,7 @@ export type Brand = {
   id: BrandId
   name: string
   backupFile: string
+  singleBranch: boolean
   titles: {
     accounting: string
     cash: string
@@ -12,10 +13,13 @@ export type Brand = {
   }
 }
 
+export type BrandBranchId = 'wasita' | 'beirut'
+
 const FARS: Brand = {
   id: 'fars',
   name: 'شاورما',
   backupFile: 'shawarma-backup',
+  singleBranch: false,
   titles: {
     accounting: 'محاسبة شاورما',
     cash: 'سجل الكاش اليومي',
@@ -28,6 +32,7 @@ const STREET: Brand = {
   id: 'street',
   name: 'مطعم شارع الشاورما',
   backupFile: 'shawarma-street-backup',
+  singleBranch: true,
   titles: {
     accounting: 'مطعم شارع الشاورما — المحاسبة',
     cash: 'مطعم شارع الشاورما — الكاش',
@@ -47,6 +52,22 @@ export function getBrand(): Brand {
 
 export function storageKey(base: string): string {
   return getBrandId() === 'street' ? `street-${base}` : base
+}
+
+export function isSingleBranch(): boolean {
+  return getBrand().singleBranch
+}
+
+export function visibleBranches(): { id: BrandBranchId; name: string }[] {
+  if (isSingleBranch()) return [{ id: 'wasita', name: getBrand().name }]
+  return [
+    { id: 'wasita', name: 'فرع الوسيطاء' },
+    { id: 'beirut', name: 'فرع بيروت' },
+  ]
+}
+
+export function branchLabel(id: BrandBranchId): string {
+  return visibleBranches().find((branch) => branch.id === id)?.name ?? getBrand().name
 }
 
 export function applyBrand(): void {

@@ -257,6 +257,11 @@
   gap: 0.85rem;
 }
 
+.cash-cards.single {
+  grid-template-columns: 1fr;
+  max-width: 36rem;
+}
+
 .cash-card {
   padding: 1rem;
   border-radius: var(--radius);
