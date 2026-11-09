@@ -76,6 +76,7 @@ export type AppData = {
   beirut: BranchData
   extraExpenses: ExtraExpense[]
   expenseLabels: Record<string, string>
+  hiddenExpenseKeys: string[]
 }
 
 export const ARABIC_DAYS = [
@@ -132,20 +133,26 @@ export function emptyAppData(): AppData {
     beirut: emptyBranch(),
     extraExpenses: [],
     expenseLabels: {},
+    hiddenExpenseKeys: [],
   }
 }
 
-export function expenseFieldList(data: Pick<AppData, 'extraExpenses' | 'expenseLabels'>): ExpenseField[] {
-  const builtins = EXPENSE_FIELDS.map((field) => ({
+export function expenseFieldList(
+  data: Pick<AppData, 'extraExpenses' | 'expenseLabels' | 'hiddenExpenseKeys'>,
+): ExpenseField[] {
+  const hidden = new Set(data.hiddenExpenseKeys ?? [])
+  const builtins = EXPENSE_FIELDS.filter((field) => !hidden.has(field.key)).map((field) => ({
     key: field.key,
     label: data.expenseLabels[field.key] || field.label,
     custom: false,
   }))
-  const extras = (data.extraExpenses ?? []).map((item) => ({
-    key: item.id,
-    label: item.label,
-    custom: true,
-  }))
+  const extras = (data.extraExpenses ?? [])
+    .filter((item) => !hidden.has(item.id))
+    .map((item) => ({
+      key: item.id,
+      label: item.label,
+      custom: true,
+    }))
   return [...builtins, ...extras]
 }
 
@@ -240,11 +247,19 @@ export function sumSalesDay(day: SalesDay | undefined): number {
 export function sumExpenseDay(
   day: ExpenseDay | undefined,
   extraExpenses: ExtraExpense[] = [],
+  hiddenKeys: string[] = [],
 ): number {
   if (!day) return 0
+  const hidden = new Set(hiddenKeys)
   let total = 0
-  for (const field of EXPENSE_FIELDS) total += Number(day[field.key]) || 0
-  for (const extra of extraExpenses) total += Number(day[extra.id]) || 0
+  for (const field of EXPENSE_FIELDS) {
+    if (hidden.has(field.key)) continue
+    total += Number(day[field.key]) || 0
+  }
+  for (const extra of extraExpenses) {
+    if (hidden.has(extra.id)) continue
+    total += Number(day[extra.id]) || 0
+  }
   return total
 }
 
@@ -281,6 +296,7 @@ export function calcBranchTotals(
   year: number,
   month: number,
   extraExpenses: ExtraExpense[] = [],
+  hiddenKeys: string[] = [],
 ) {
   const days = daysInMonth(year, month)
   let totalExpenses = 0
@@ -302,11 +318,12 @@ export function calcBranchTotals(
     totalInStore += inStoreSales(day)
     totalApps += day.deliveryApps
     totalPurchases += day.todayPurchases
-    totalExpenses += sumExpenseDay(expenses, extraExpenses)
+    totalExpenses += sumExpenseDay(expenses, extraExpenses, hiddenKeys)
   }
 
   const totalSales = roundMoney(totalInStore + totalApps - totalPurchases)
   const variance = roundMoney(totalSales - totalDevice)
+  const netProfitNoApps = roundMoney(totalInStore - totalPurchases - totalExpenses)
 
   return {
     totalSales,
@@ -319,5 +336,6 @@ export function calcBranchTotals(
     variance,
     totalExpenses,
     netProfit: roundMoney(totalSales - totalExpenses),
+    netProfitNoApps,
   }
 }

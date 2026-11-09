@@ -154,21 +154,30 @@ function App() {
   }
 
   const removeExpenseField = (field: ExpenseField) => {
-    if (!field.custom) return
     const ok = window.confirm(`حذف بند «${field.label}»؟`)
     if (!ok) return
-    setData((prev) => ({
-      ...prev,
-      extraExpenses: prev.extraExpenses.filter((item) => item.id !== field.key),
-    }))
+    setData((prev) => {
+      if (field.custom) {
+        return {
+          ...prev,
+          extraExpenses: prev.extraExpenses.filter((item) => item.id !== field.key),
+        }
+      }
+      const hidden = prev.hiddenExpenseKeys ?? []
+      if (hidden.includes(field.key)) return prev
+      return { ...prev, hiddenExpenseKeys: [...hidden, field.key] }
+    })
     setExpenseEditor(null)
   }
 
   const expenseFields = expenseFieldList(data)
-  const monthExpenseByItem = expenseMonthTotals(branchData.expenses, expenseFields, year, month)
   const extras = data.extraExpenses
-  const wasitaTotals = calcBranchTotals(data.wasita, year, month, extras)
-  const beirutTotals = calcBranchTotals(data.beirut, year, month, extras)
+  const hiddenKeys = data.hiddenExpenseKeys ?? []
+  const monthExpenseByItem = expenseMonthTotals(branchData.expenses, expenseFields, year, month)
+  const wasitaExpenseByItem = expenseMonthTotals(data.wasita.expenses, expenseFields, year, month)
+  const beirutExpenseByItem = expenseMonthTotals(data.beirut.expenses, expenseFields, year, month)
+  const wasitaTotals = calcBranchTotals(data.wasita, year, month, extras, hiddenKeys)
+  const beirutTotals = calcBranchTotals(data.beirut, year, month, extras, hiddenKeys)
   const grand = {
     totalSales: wasitaTotals.totalSales + beirutTotals.totalSales,
     totalDevice: wasitaTotals.totalDevice + beirutTotals.totalDevice,
@@ -181,6 +190,7 @@ function App() {
       wasitaTotals.totalSales +
       beirutTotals.totalSales -
       (wasitaTotals.totalExpenses + beirutTotals.totalExpenses),
+    netProfitNoApps: wasitaTotals.netProfitNoApps + beirutTotals.netProfitNoApps,
   }
   const currentTotals = branch === 'wasita' ? wasitaTotals : beirutTotals
   const singleBranch = isSingleBranch()
@@ -191,7 +201,7 @@ function App() {
   const dayWithApps = totalWithApps(sales)
   const dayDeviceNet = deviceNet(sales)
   const dayVariance = surplusDeficit(sales)
-  const dayExpenseTotal = sumExpenseDay(expenses, extras)
+  const dayExpenseTotal = sumExpenseDay(expenses, extras, hiddenKeys)
 
   const hasDayData = (day: number) => {
     const k = dateKey(year, month, day)
@@ -246,7 +256,7 @@ function App() {
         </button>
       </section>
 
-      <section className="kpi-row" aria-label="ملخص سريع">
+      <section className={`kpi-row${singleBranch ? '' : ' four'}`} aria-label="ملخص سريع">
         <article className="kpi">
           <span>إجمالي المبيعات</span>
           <strong className="pos">{formatMoney(headlineTotals.totalSales)}</strong>
@@ -261,6 +271,14 @@ function App() {
             {formatMoney(headlineTotals.netProfit)}
           </strong>
         </article>
+        {!singleBranch && (
+          <article className="kpi">
+            <span>صافي الربح للفرعين بدون التطبيقات</span>
+            <strong className={grand.netProfitNoApps >= 0 ? 'pos' : 'neg'}>
+              {formatMoney(grand.netProfitNoApps)}
+            </strong>
+          </article>
+        )}
       </section>
 
       {!singleBranch && (
@@ -489,20 +507,44 @@ function App() {
               <label key={field.key} className="field expense-field">
                 <span className="field-label-row">
                   <span className="field-name">{field.label}</span>
-                  <button
-                    type="button"
-                    className="icon-edit"
-                    aria-label={`تعديل ${field.label}`}
-                    onClick={(e) => {
-                      e.preventDefault()
-                      setExpenseEditor(field)
-                    }}
-                  >
-                    <EditIcon />
-                  </button>
+                  <span className="field-actions">
+                    <button
+                      type="button"
+                      className="icon-edit"
+                      aria-label={`تعديل ${field.label}`}
+                      onClick={(e) => {
+                        e.preventDefault()
+                        setExpenseEditor(field)
+                      }}
+                    >
+                      <EditIcon />
+                    </button>
+                    {!singleBranch && (
+                      <button
+                        type="button"
+                        className="icon-edit icon-delete"
+                        aria-label={`حذف ${field.label}`}
+                        onClick={(e) => {
+                          e.preventDefault()
+                          removeExpenseField(field)
+                        }}
+                      >
+                        <DeleteIcon />
+                      </button>
+                    )}
+                  </span>
                 </span>
                 <span className="field-month-total">
                   إجمالي الشهر: {formatMoney(monthExpenseByItem[field.key] || 0)}
+                  {!singleBranch && (
+                    <>
+                      {' '}
+                      · الفرعين:{' '}
+                      {formatMoney(
+                        (wasitaExpenseByItem[field.key] || 0) + (beirutExpenseByItem[field.key] || 0),
+                      )}
+                    </>
+                  )}
                 </span>
                 <input
                   type="number"
@@ -520,18 +562,55 @@ function App() {
             <strong>{formatMoney(dayExpenseTotal)}</strong>
           </div>
           <div className="expense-month-panel">
-            <h4>إجمالي كل صنف خلال {currentMonthLabel}</h4>
-            <ul>
-              {expenseFields.map((field) => (
-                <li key={field.key}>
-                  <span>{field.label}</span>
-                  <strong>{formatMoney(monthExpenseByItem[field.key] || 0)}</strong>
-                </li>
-              ))}
-            </ul>
+            <h4>
+              {singleBranch
+                ? `إجمالي كل صنف خلال ${currentMonthLabel}`
+                : `إجمالي كل صنف للفرعين خلال ${currentMonthLabel}`}
+            </h4>
+            {singleBranch ? (
+              <ul>
+                {expenseFields.map((field) => (
+                  <li key={field.key}>
+                    <span>{field.label}</span>
+                    <strong>{formatMoney(monthExpenseByItem[field.key] || 0)}</strong>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="expense-both-wrap">
+                <table className="expense-both-table">
+                  <thead>
+                    <tr>
+                      <th>الصنف</th>
+                      <th>الوسيطاء</th>
+                      <th>بيروت</th>
+                      <th>الفرعين</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {expenseFields.map((field) => {
+                      const wasitaAmt = wasitaExpenseByItem[field.key] || 0
+                      const beirutAmt = beirutExpenseByItem[field.key] || 0
+                      return (
+                        <tr key={field.key}>
+                          <td>{field.label}</td>
+                          <td>{formatMoney(wasitaAmt)}</td>
+                          <td>{formatMoney(beirutAmt)}</td>
+                          <td>
+                            <strong>{formatMoney(wasitaAmt + beirutAmt)}</strong>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
             <div className="expense-month-grand">
-              <span>إجمالي المصروفات</span>
-              <strong>{formatMoney(currentTotals.totalExpenses)}</strong>
+              <span>{singleBranch ? 'إجمالي المصروفات' : 'إجمالي المصروفات للفرعين'}</span>
+              <strong>
+                {formatMoney(singleBranch ? currentTotals.totalExpenses : grand.totalExpenses)}
+              </strong>
             </div>
           </div>
         </section>
@@ -581,6 +660,14 @@ function App() {
                     {formatMoney(wasitaTotals.netProfit)}
                   </dd>
                 </div>
+                {!singleBranch && (
+                  <div>
+                    <dt>صافي الربح بدون التطبيقات</dt>
+                    <dd className={wasitaTotals.netProfitNoApps >= 0 ? 'pos' : 'neg'}>
+                      {formatMoney(wasitaTotals.netProfitNoApps)}
+                    </dd>
+                  </div>
+                )}
               </dl>
             </article>
 
@@ -622,6 +709,12 @@ function App() {
                   <dt>صافي الربح</dt>
                   <dd className={beirutTotals.netProfit >= 0 ? 'pos' : 'neg'}>
                     {formatMoney(beirutTotals.netProfit)}
+                  </dd>
+                </div>
+                <div>
+                  <dt>صافي الربح بدون التطبيقات</dt>
+                  <dd className={beirutTotals.netProfitNoApps >= 0 ? 'pos' : 'neg'}>
+                    {formatMoney(beirutTotals.netProfitNoApps)}
                   </dd>
                 </div>
               </dl>
@@ -668,6 +761,12 @@ function App() {
                     {formatMoney(grand.netProfit)}
                   </dd>
                 </div>
+                <div>
+                  <dt>صافي الربح بدون التطبيقات</dt>
+                  <dd className={grand.netProfitNoApps >= 0 ? 'pos' : 'neg'}>
+                    {formatMoney(grand.netProfitNoApps)}
+                  </dd>
+                </div>
               </dl>
             </article>
             )}
@@ -702,7 +801,7 @@ function App() {
                   const inStore = inStoreSales(row)
                   const withApps = sumSalesDay(row)
                   const variance = surplusDeficit(row)
-                  const e = sumExpenseDay(branchData.expenses[k], extras)
+                  const e = sumExpenseDay(branchData.expenses[k], extras, hiddenKeys)
                   const net = withApps - e
                   const wd = ARABIC_DAYS[new Date(year, month, day).getDay()]
                   return (
@@ -784,6 +883,17 @@ function EditIcon() {
       <path
         fill="currentColor"
         d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"
+      />
+    </svg>
+  )
+}
+
+function DeleteIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden>
+      <path
+        fill="currentColor"
+        d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"
       />
     </svg>
   )
