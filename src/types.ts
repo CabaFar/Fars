@@ -248,6 +248,34 @@ export function sumExpenseDay(
   return total
 }
 
+/** إجمالي بند مصروف واحد خلال أيام الشهر */
+export function sumExpenseFieldMonth(
+  expenses: Record<string, ExpenseDay>,
+  fieldKey: string,
+  year: number,
+  month: number,
+): number {
+  const days = daysInMonth(year, month)
+  let total = 0
+  for (let d = 1; d <= days; d++) {
+    total += Number(expenses[dateKey(year, month, d)]?.[fieldKey]) || 0
+  }
+  return roundMoney(total)
+}
+
+export function expenseMonthTotals(
+  expenses: Record<string, ExpenseDay>,
+  fields: ExpenseField[],
+  year: number,
+  month: number,
+): Record<string, number> {
+  const totals: Record<string, number> = {}
+  for (const field of fields) {
+    totals[field.key] = sumExpenseFieldMonth(expenses, field.key, year, month)
+  }
+  return totals
+}
+
 export function calcBranchTotals(
   data: BranchData,
   year: number,

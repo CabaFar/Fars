@@ -469,6 +469,18 @@
   gap: 0.4rem;
 }
 
+.field .field-name {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.expense-field {
+  padding: 0.75rem 0.85rem 0.7rem;
+  border-radius: 12px;
+  border: 1px solid var(--red-line);
+  background: #fff;
+}
+
 .icon-add,
 .icon-edit {
   appearance: none;
@@ -614,6 +626,75 @@
   color: var(--red-dark);
 }
 
+.field .field-month-total {
+  color: var(--red-dark);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.expense-month-panel {
+  margin-top: 1rem;
+  padding: 1rem 1.1rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--red-line);
+  background: #fff;
+}
+
+.expense-month-panel h4 {
+  margin: 0 0 0.85rem;
+  font-family: var(--font-display);
+  color: var(--red-dark);
+  font-size: 1.05rem;
+}
+
+.expense-month-panel ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem 1rem;
+}
+
+.expense-month-panel li {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 0.45rem 0.15rem;
+  border-bottom: 1px solid var(--red-line);
+}
+
+.expense-month-panel li span {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.expense-month-panel li strong {
+  font-family: var(--font-display);
+  color: var(--ink);
+}
+
+.expense-month-grand {
+  margin-top: 0.85rem;
+  padding-top: 0.75rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  border-top: 1px solid var(--red);
+}
+
+.expense-month-grand span {
+  color: var(--muted);
+}
+
+.expense-month-grand strong {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  color: var(--red-dark);
+}
+
 .hint {
   margin: 0.85rem 0 0;
   color: var(--muted);
@@ -730,7 +811,8 @@
   }
 
   .fields,
-  .sales-groups {
+  .sales-groups,
+  .expense-month-panel ul {
     grid-template-columns: 1fr;
   }
 
