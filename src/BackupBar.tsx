@@ -163,9 +163,23 @@ export function BackupBar() {
             void onConnect()
           }}
         >
+          <div className="sys-backup-guide" aria-label="خطوات الربط بالصور">
+            <figure>
+              <img src={`${import.meta.env.BASE_URL}guide/step1.png`} alt="الخطوة 1: SQL Editor ثم Run" />
+              <figcaption>١ — SQL Editor ثم Run</figcaption>
+            </figure>
+            <figure>
+              <img src={`${import.meta.env.BASE_URL}guide/step2.png`} alt="الخطوة 2: نسخ Project URL ومفتاح anon" />
+              <figcaption>٢ — Settings ثم API Keys</figcaption>
+            </figure>
+            <figure>
+              <img src={`${import.meta.env.BASE_URL}guide/step3.png`} alt="الخطوة 3: الربط في صفحة شاورما" />
+              <figcaption>٣ — الصق هنا ثم ربط النسخ</figcaption>
+            </figure>
+          </div>
           <p>
-            مرة واحدة: من مشروع Supabase انسخ Project URL ومفتاح anon public، بعد تشغيل أمر الجدول في SQL
-            Editor.
+            مرة واحدة: في SQL Editor شغّل أمر الجدول، ثم من Settings → API Keys انسخ Project URL ومفتاح anon
+            public أو publishable فقط.
           </p>
           <label>
             رابط المشروع
@@ -179,11 +193,11 @@ export function BackupBar() {
             />
           </label>
           <label>
-            مفتاح anon
+            مفتاح anon / publishable
             <input
-              type="password"
+              type="text"
               dir="ltr"
-              placeholder="eyJ..."
+              placeholder="eyJ... أو sb_publishable_..."
               value={anonKey}
               onChange={(e) => setAnonKey(e.target.value)}
               autoComplete="off"
