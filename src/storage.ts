@@ -1,4 +1,5 @@
 import { storageKey } from './brand'
+import { notifyLocalChange } from './notifyChange'
 import type { AppData, BranchId, ExtraExpense, SalesDay } from './types'
 import { emptyAppData, emptyBranch, normalizeSalesDay } from './types'
 
@@ -68,4 +69,5 @@ export function loadData(): AppData {
 
 export function saveData(data: AppData): void {
   localStorage.setItem(accountingStorageKey(), JSON.stringify(data))
+  notifyLocalChange()
 }

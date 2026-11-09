@@ -1,4 +1,5 @@
 import { getBrand, storageKey } from '../brand'
+import { notifyLocalChange } from '../notifyChange'
 import type { CategoryId, ExtraItem } from './catalog'
 import type { InventoryData, PriceList, UnitOverrides } from './types'
 import { emptyInventoryData, emptyPriceList } from './types'
@@ -53,6 +54,7 @@ export function loadInventory(): InventoryData {
 
 export function saveInventory(data: InventoryData): void {
   localStorage.setItem(storageKey(STORAGE_KEY), JSON.stringify(data))
+  notifyLocalChange()
 }
 
 export function loadPrices(): PriceList {
@@ -71,6 +73,7 @@ export function loadPrices(): PriceList {
 
 export function savePrices(prices: PriceList): void {
   localStorage.setItem(storageKey(PRICE_KEY), JSON.stringify(prices))
+  notifyLocalChange()
 }
 
 export function loadExtras(): ExtraItem[] {
@@ -86,6 +89,7 @@ export function loadExtras(): ExtraItem[] {
 
 export function saveExtras(items: ExtraItem[]): void {
   localStorage.setItem(storageKey(EXTRA_KEY), JSON.stringify(items))
+  notifyLocalChange()
 }
 
 export function loadUnitOverrides(): UnitOverrides {
@@ -101,6 +105,7 @@ export function loadUnitOverrides(): UnitOverrides {
 
 export function saveUnitOverrides(units: UnitOverrides): void {
   localStorage.setItem(storageKey(UNITS_KEY), JSON.stringify(units))
+  notifyLocalChange()
 }
 
 export function loadRemovedIds(): string[] {
@@ -116,6 +121,7 @@ export function loadRemovedIds(): string[] {
 
 export function saveRemovedIds(ids: string[]): void {
   localStorage.setItem(storageKey(REMOVED_KEY), JSON.stringify(ids))
+  notifyLocalChange()
 }
 
 export function loadMetaOverrides(): ItemMetaOverrides {
@@ -131,6 +137,7 @@ export function loadMetaOverrides(): ItemMetaOverrides {
 
 export function saveMetaOverrides(meta: ItemMetaOverrides): void {
   localStorage.setItem(storageKey(META_KEY), JSON.stringify(meta))
+  notifyLocalChange()
 }
 
 export type BackupPayload = {

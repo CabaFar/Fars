@@ -1,4 +1,5 @@
 import { storageKey } from '../brand'
+import { notifyLocalChange } from '../notifyChange'
 import type { CashAppData } from './types'
 import { emptyCashAppData, normalizeCashDay } from './types'
 
@@ -31,4 +32,5 @@ export function loadCashData(): CashAppData {
 
 export function saveCashData(data: CashAppData): void {
   localStorage.setItem(cashStorageKey(), JSON.stringify(data))
+  notifyLocalChange()
 }
