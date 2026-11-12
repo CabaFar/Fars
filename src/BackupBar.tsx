@@ -7,6 +7,7 @@ import {
   getCloudStatus,
   prepareCloud,
   readSavedCloudConfig,
+  restoreFromCloud,
   saveCloudConfig,
   subscribeCloudStatus,
 } from './cloudSync'
@@ -16,6 +17,8 @@ const CONFIRM_FULL =
   'سيتم استبدال جميع بيانات المحاسبة والكاش والمخزون والموارد البشرية بالنسخة المختارة. هل تريد المتابعة؟'
 const CONFIRM_INVENTORY =
   'هذا ملف مخزون فقط. سيتم استبدال بيانات المخزون الحالية دون الصفحات الأخرى. هل تريد المتابعة؟'
+const CONFIRM_CLOUD =
+  'سيتم استبدال جميع بيانات المحاسبة والكاش والمخزون والموارد البشرية بالنسخة المحفوظة على Supabase. هل تريد المتابعة؟'
 
 function formatSyncTime(iso: string | null): string {
   if (!iso) return ''
@@ -68,6 +71,19 @@ export function BackupBar() {
     }
   }
 
+  const onRestoreCloud = async () => {
+    if (!window.confirm(CONFIRM_CLOUD)) return
+    setBusy(true)
+    try {
+      await restoreFromCloud()
+      window.location.reload()
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : 'تعذر استعادة النسخة من Supabase.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const onConnect = async () => {
     if (!url.trim() || !anonKey.trim()) {
       window.alert('أدخل رابط مشروع Supabase ومفتاح anon.')
@@ -76,7 +92,6 @@ export function BackupBar() {
     setBusy(true)
     try {
       saveCloudConfig(url, anonKey)
-      notifyLocalChange()
       await prepareCloud()
       const next = getCloudStatus()
       if (next.lastError) {
@@ -107,7 +122,7 @@ export function BackupBar() {
         <h2>{isFars ? 'نسخة احتياطية على الرابط' : 'نسخة احتياطية كاملة'}</h2>
         <p>
           {isFars
-            ? 'أي تعديل في المحاسبة أو الكاش أو المخزون أو الموارد البشرية يُحفظ تلقائياً ويظهر على كامل الرابط وعلى أي جهاز.'
+            ? 'أي تعديل يُحفظ تلقائياً على Supabase. للاستعادة: افتح الرابط بعد الربط، أو اضغط «استعادة من السحابة».'
             : 'احفظ كل الصفحات في ملف واحد على جهازك. الاستعادة تستبدل البيانات الحالية.'}
         </p>
         {isFars && status.configured && (
@@ -134,6 +149,11 @@ export function BackupBar() {
         >
           استعادة من ملف
         </button>
+        {isFars && status.configured && (
+          <button type="button" className="ghost" onClick={() => void onRestoreCloud()} disabled={busy}>
+            استعادة من السحابة
+          </button>
+        )}
         {isFars && status.configured && !editConfig && (
           <button type="button" className="ghost" onClick={() => setEditConfig(true)} disabled={busy}>
             تغيير الربط

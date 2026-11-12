@@ -240,22 +240,48 @@ export function scheduleCloudPush(): void {
   }, PUSH_DELAY_MS)
 }
 
+export async function restoreFromCloud(): Promise<void> {
+  if (!cloudEnabled()) throw new Error('الاستعادة من السحابة متاحة لشاورما البسيط فقط.')
+  if (!cloudConfigured()) throw new Error('اربط مشروع Supabase أولاً ثم أعد المحاولة.')
+  syncing = true
+  emitStatus()
+  try {
+    const remote = await fetchCloudRow()
+    if (!remote) throw new Error('لا توجد نسخة محفوظة على Supabase بعد.')
+    restoreBackup(remote.payload)
+    clearDirty()
+    lastError = null
+    lastSyncedAt = remote.updatedAt || new Date().toISOString()
+  } catch (err) {
+    lastError = err instanceof Error ? err.message : 'تعذر استعادة النسخة من Supabase.'
+    throw err
+  } finally {
+    syncing = false
+    ready = true
+    emitStatus()
+  }
+}
+
 async function hydrateFromCloud(): Promise<void> {
   if (!cloudEnabled() || !cloudConfigured()) {
     ready = true
     return
   }
-  if (isDirty()) {
-    try {
-      await flushCloudPush()
-    } catch {
-      ready = true
-      emitStatus()
-    }
-    return
-  }
   try {
     const remote = await fetchCloudRow()
+    if (remote && isDirty() && !hasLocalDashboard()) {
+      restoreBackup(remote.payload)
+      clearDirty()
+      lastSyncedAt = remote.updatedAt || new Date().toISOString()
+      lastError = null
+      ready = true
+      emitStatus()
+      return
+    }
+    if (isDirty()) {
+      await flushCloudPush()
+      return
+    }
     if (remote) {
       restoreBackup(remote.payload)
       lastSyncedAt = remote.updatedAt || new Date().toISOString()
