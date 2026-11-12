@@ -171,3 +171,84 @@ h4 {
   opacity: 0.65;
   cursor: wait;
 }
+
+.sys-backup-status {
+  margin-top: 0.45rem;
+  color: var(--red-dark);
+  font-size: 0.86rem;
+}
+
+.sys-backup-status.is-error {
+  color: var(--red);
+}
+
+.sys-backup-cloud {
+  flex: 1 1 100%;
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 0.35rem;
+}
+
+.sys-backup-cloud p {
+  margin: 0;
+}
+
+.sys-backup-cloud label {
+  display: grid;
+  gap: 0.28rem;
+  color: var(--red-dark);
+  font-size: 0.86rem;
+}
+
+.sys-backup-cloud input {
+  font: inherit;
+  direction: ltr;
+  border: 1px solid var(--red-line);
+  border-radius: 0.7rem;
+  padding: 0.5rem 0.7rem;
+  background: #fff;
+  color: var(--text);
+}
+
+.sys-backup-sql summary {
+  cursor: pointer;
+  color: var(--red-dark);
+  font-size: 0.86rem;
+}
+
+.sys-backup-sql pre {
+  margin: 0.5rem 0 0;
+  padding: 0.7rem;
+  overflow: auto;
+  border: 1px solid var(--red-line);
+  border-radius: 0.7rem;
+  background: var(--red-soft);
+  color: var(--text);
+  font-size: 0.75rem;
+  white-space: pre-wrap;
+}
+
+.sys-backup-guide {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.65rem;
+}
+
+.sys-backup-guide figure {
+  margin: 0;
+}
+
+.sys-backup-guide img {
+  width: 100%;
+  border: 1px solid var(--red-line);
+  border-radius: 0.7rem;
+  background: #fff;
+  display: block;
+}
+
+.sys-backup-guide figcaption {
+  margin-top: 0.35rem;
+  color: var(--red-dark);
+  font-size: 0.8rem;
+  font-weight: 700;
+}

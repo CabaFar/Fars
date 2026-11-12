@@ -1,4 +1,5 @@
 import { storageKey } from '../brand'
+import { notifyLocalChange } from '../notifyChange'
 import type { Employee } from './types'
 import {
   cloneForNewMonth,
@@ -76,6 +77,7 @@ export function loadStore(): HrStore {
 
 export function saveStore(store: HrStore): void {
   localStorage.setItem(hrStorageKey(), JSON.stringify(store))
+  notifyLocalChange()
 }
 
 function nearestSourceKey(store: HrStore, targetKey: string): string | null {
